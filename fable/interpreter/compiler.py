@@ -1,0 +1,3 @@
+"""
+Colon definition compiler.
+"""

@@ -1,0 +1,3 @@
+"""
+Custom Qt signals.
+"""
