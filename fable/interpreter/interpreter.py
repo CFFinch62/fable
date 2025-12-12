@@ -118,17 +118,24 @@ class ForthInterpreter(QObject):
         Args:
             word: The word name
         """
+        # Check for colon definition start
+        if word == ':':
+            self._start_definition()
+            return
+        
+        # Check for semicolon definition end
+        if word == ';' and self.compiling:
+            self._end_definition()
+            return
+        
+        # If we're compiling and don't have a name yet, this is the word name
+        if self.compiling and not self._definition_name:
+            self._definition_name = word.upper()
+            return
+        
         entry = self.dictionary.lookup(word)
         
         if entry is None:
-            # Check for special compile-mode words
-            if word == ':':
-                self._start_definition()
-                return
-            if word == ';' and self.compiling:
-                self._end_definition()
-                return
-            
             # Unknown word
             suggestions = self.dictionary.find_similar(word)
             raise UnknownWordError(word, suggestions)
@@ -160,19 +167,108 @@ class ForthInterpreter(QObject):
         self.word_complete.emit(entry.name, list(self.data_stack))
     
     def _execute_compiled(self, code: List) -> None:
-        """Execute compiled threaded code.
+        """Execute compiled threaded code with control flow support.
         
         Args:
             code: List of operations to execute
+            
+        Supports:
+            - LIT: Push literal value
+            - STR: Push string value
+            - BRANCH: Unconditional branch (offset)
+            - 0BRANCH: Branch if TOS is 0 (offset)
+            - DO: Start loop (limit, index on stack)
+            - LOOP: Increment and check loop
+            - +LOOP: Add n and check loop
+            - I: Push loop index
+            - J: Push outer loop index
+            - LEAVE: Exit loop early
         """
-        for item in code:
+        ip = 0  # Instruction pointer
+        loop_stack = []  # Stack of (limit, index, loop_start_ip)
+        
+        while ip < len(code):
+            item = code[ip]
+            ip += 1
+            
             if isinstance(item, tuple):
-                op, value = item
+                op = item[0]
+                
                 if op == 'LIT':
-                    self.push(value)
+                    self.push(item[1])
+                    
                 elif op == 'STR':
-                    self.push(value)
+                    self.push(item[1])
+                    
+                elif op == 'BRANCH':
+                    # Unconditional branch
+                    ip = item[1]
+                    
+                elif op == '0BRANCH':
+                    # Branch if top of stack is 0 (false)
+                    flag = self.pop()
+                    if flag == 0:
+                        ip = item[1]
+                        
+                elif op == 'DO':
+                    # Start a DO loop: ( limit index -- )
+                    index = self.pop()
+                    limit = self.pop()
+                    loop_stack.append((limit, index, ip))
+                    
+                elif op == 'LOOP':
+                    # Increment index and check
+                    if loop_stack:
+                        limit, index, loop_start = loop_stack[-1]
+                        index += 1
+                        if index >= limit:
+                            loop_stack.pop()
+                            # Continue past loop
+                        else:
+                            loop_stack[-1] = (limit, index, loop_start)
+                            ip = loop_start
+                            
+                elif op == '+LOOP':
+                    # Add increment and check
+                    n = self.pop()
+                    if loop_stack:
+                        limit, index, loop_start = loop_stack[-1]
+                        index += n
+                        if (n > 0 and index >= limit) or (n < 0 and index <= limit):
+                            loop_stack.pop()
+                        else:
+                            loop_stack[-1] = (limit, index, loop_start)
+                            ip = loop_start
+                            
+                elif op == 'I':
+                    # Push current loop index
+                    if loop_stack:
+                        _, index, _ = loop_stack[-1]
+                        self.push(index)
+                        
+                elif op == 'J':
+                    # Push outer loop index
+                    if len(loop_stack) >= 2:
+                        _, index, _ = loop_stack[-2]
+                        self.push(index)
+                        
+                elif op == 'LEAVE':
+                    # Exit current loop
+                    if loop_stack:
+                        loop_stack.pop()
+                        # Find matching LOOP/+LOOP to skip to
+                        depth = 1
+                        while ip < len(code) and depth > 0:
+                            check = code[ip]
+                            ip += 1
+                            if isinstance(check, tuple):
+                                if check[0] == 'DO':
+                                    depth += 1
+                                elif check[0] in ('LOOP', '+LOOP'):
+                                    depth -= 1
+                                    
             elif isinstance(item, str):
+                # Word call
                 entry = self.dictionary.lookup(item)
                 if entry:
                     self._execute_entry(entry)

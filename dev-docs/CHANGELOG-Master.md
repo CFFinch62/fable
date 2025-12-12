@@ -18,7 +18,7 @@
 | 4 | REPL Integration | ✅ Complete | `phase4` |
 | 5 | Code Editor | ✅ Complete | `phase5` |
 | 6 | File Browser | ✅ Complete | `phase6` |
-| 7 | Control Flow & Step Mode | ⬜ Not Started | |
+| 7 | Control Flow & Step Mode | ✅ Complete | `phase7` |
 | Fixes | Bug Fixes & Polish | ⬜ Not Started | |
 
 ---

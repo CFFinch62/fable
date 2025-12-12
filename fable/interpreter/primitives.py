@@ -31,6 +31,9 @@ def register_all(interp: 'ForthInterpreter') -> None:
     
     # Output
     _register_output_words(interp)
+    
+    # Control flow (compile-time words)
+    _register_control_flow_words(interp)
 
 
 # =============================================================================
@@ -566,4 +569,154 @@ def _register_output_words(interp: 'ForthInterpreter') -> None:
     for name, code, effect, doc in words:
         interp.dictionary.define(DictionaryEntry(
             name=name, code=code, stack_effect=effect, docstring=doc
+        ))
+
+
+# =============================================================================
+# Control Flow Words (Compile-time / Immediate)
+# =============================================================================
+
+def _register_control_flow_words(interp: 'ForthInterpreter') -> None:
+    """Register control flow words (mostly immediate/compile-time)."""
+    
+    # These words manipulate the compilation process
+    # They compile branch operations into the current definition
+    
+    def word_if(i: 'ForthInterpreter'):
+        """IF - Start conditional. Compiles 0BRANCH with placeholder."""
+        if not i.compiling:
+            return  # Only valid during compilation
+        # Push current position for later patching
+        branch_pos = len(i._current_definition)
+        i._current_definition.append(('0BRANCH', None))  # Placeholder
+        i.rpush(branch_pos)  # Remember where to patch
+    
+    def word_else(i: 'ForthInterpreter'):
+        """ELSE - Optional branch for IF. Patches IF, compiles BRANCH."""
+        if not i.compiling:
+            return
+        # Compile unconditional branch (to skip THEN part)
+        branch_pos = len(i._current_definition)
+        i._current_definition.append(('BRANCH', None))  # Placeholder
+        
+        # Patch the IF's 0BRANCH to jump here (after ELSE)
+        if_pos = i.rpop()
+        i._current_definition[if_pos] = ('0BRANCH', len(i._current_definition))
+        
+        # Remember ELSE position for THEN to patch
+        i.rpush(branch_pos)
+    
+    def word_then(i: 'ForthInterpreter'):
+        """THEN - End conditional. Patches previous branch."""
+        if not i.compiling:
+            return
+        # Patch the previous branch (from IF or ELSE) to jump here
+        branch_pos = i.rpop()
+        op, _ = i._current_definition[branch_pos]
+        i._current_definition[branch_pos] = (op, len(i._current_definition))
+    
+    def word_begin(i: 'ForthInterpreter'):
+        """BEGIN - Start indefinite loop. Marks loop start."""
+        if not i.compiling:
+            return
+        # Push loop start position
+        i.rpush(len(i._current_definition))
+    
+    def word_until(i: 'ForthInterpreter'):
+        """UNTIL - End BEGIN loop. Branches back if false."""
+        if not i.compiling:
+            return
+        loop_start = i.rpop()
+        i._current_definition.append(('0BRANCH', loop_start))
+    
+    def word_while(i: 'ForthInterpreter'):
+        """WHILE - Mid-loop test. Branches to after REPEAT if false."""
+        if not i.compiling:
+            return
+        branch_pos = len(i._current_definition)
+        i._current_definition.append(('0BRANCH', None))  # Placeholder
+        i.rpush(branch_pos)
+    
+    def word_repeat(i: 'ForthInterpreter'):
+        """REPEAT - End BEGIN...WHILE loop. Branches back to BEGIN."""
+        if not i.compiling:
+            return
+        while_pos = i.rpop()
+        begin_pos = i.rpop()
+        # Branch back to BEGIN
+        i._current_definition.append(('BRANCH', begin_pos))
+        # Patch WHILE to jump here
+        i._current_definition[while_pos] = ('0BRANCH', len(i._current_definition))
+    
+    def word_do(i: 'ForthInterpreter'):
+        """DO - Start counted loop. ( limit index -- )"""
+        if not i.compiling:
+            return
+        i._current_definition.append(('DO', None))
+        i.rpush(len(i._current_definition))  # Loop start
+    
+    def word_loop(i: 'ForthInterpreter'):
+        """LOOP - End DO loop. Increments and checks."""
+        if not i.compiling:
+            return
+        loop_start = i.rpop()
+        i._current_definition.append(('LOOP', loop_start))
+    
+    def word_plus_loop(i: 'ForthInterpreter'):
+        """+LOOP - End DO loop with custom increment."""
+        if not i.compiling:
+            return
+        loop_start = i.rpop()
+        i._current_definition.append(('+LOOP', loop_start))
+    
+    def word_i(i: 'ForthInterpreter'):
+        """I - Push current loop index."""
+        if i.compiling:
+            i._current_definition.append(('I', None))
+        else:
+            # Runtime - use return stack
+            if i.return_stack:
+                i.push(i.rpeek(0))
+    
+    def word_j(i: 'ForthInterpreter'):
+        """J - Push outer loop index."""
+        if i.compiling:
+            i._current_definition.append(('J', None))
+        else:
+            if len(i.return_stack) >= 2:
+                i.push(i.rpeek(1))
+    
+    def word_leave(i: 'ForthInterpreter'):
+        """LEAVE - Exit loop immediately."""
+        if i.compiling:
+            i._current_definition.append(('LEAVE', None))
+    
+    def word_exit(i: 'ForthInterpreter'):
+        """EXIT - Exit the current word immediately."""
+        # This is tricky in threaded code - for now, compile as marker
+        if i.compiling:
+            i._current_definition.append(('EXIT', None))
+    
+    # Register control flow words - marked as IMMEDIATE
+    words = [
+        ('IF', word_if, '( flag -- )', 'Start conditional', True),
+        ('ELSE', word_else, '( -- )', 'Alternative branch', True),
+        ('THEN', word_then, '( -- )', 'End conditional', True),
+        ('BEGIN', word_begin, '( -- )', 'Start indefinite loop', True),
+        ('UNTIL', word_until, '( flag -- )', 'End BEGIN loop', True),
+        ('WHILE', word_while, '( flag -- )', 'Mid-loop test', True),
+        ('REPEAT', word_repeat, '( -- )', 'End BEGIN...WHILE loop', True),
+        ('DO', word_do, '( limit index -- )', 'Start counted loop', True),
+        ('LOOP', word_loop, '( -- )', 'End DO loop', True),
+        ('+LOOP', word_plus_loop, '( n -- )', 'End DO loop with increment', True),
+        ('I', word_i, '( -- n )', 'Push loop index', True),
+        ('J', word_j, '( -- n )', 'Push outer loop index', True),
+        ('LEAVE', word_leave, '( -- )', 'Exit loop', True),
+        ('EXIT', word_exit, '( -- )', 'Exit word', True),
+    ]
+    
+    for name, code, effect, doc, immediate in words:
+        interp.dictionary.define(DictionaryEntry(
+            name=name, code=code, stack_effect=effect, 
+            docstring=doc, immediate=immediate
         ))
