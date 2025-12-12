@@ -44,6 +44,7 @@ class MainWindow(QMainWindow):
         self._create_menus()
         self._create_toolbar()
         self._create_statusbar()
+        self._current_theme = None
         self._restore_state()
         self._connect_signals()
     
@@ -395,6 +396,10 @@ class MainWindow(QMainWindow):
     def _new_file(self):
         """Create a new file tab."""
         editor = ForthEditor()
+        # Apply current theme if available
+        if self._current_theme:
+            self._apply_editor_theme(editor, self._current_theme)
+            
         index = self.editor_tabs.addTab(editor, "Untitled")
         self.editor_tabs.setCurrentIndex(index)
         editor.cursorPositionChanged.connect(self._update_cursor_position)
@@ -415,6 +420,10 @@ class MainWindow(QMainWindow):
                 content = f.read()
             
             editor = ForthEditor()
+            # Apply current theme if available
+            if self._current_theme:
+                self._apply_editor_theme(editor, self._current_theme)
+            
             editor.setPlainText(content)
             editor.setProperty("file_path", path)
             editor.cursorPositionChanged.connect(self._update_cursor_position)
@@ -591,11 +600,22 @@ class MainWindow(QMainWindow):
             "<p><i>Forth Animated Beginners Learning Environment</i></p>"
             "<p><b>Every stack tells a story</b></p>"
             "<p>Version 0.1.0</p>"
-            "<p>© 2025 Chuck / Fragillidae Software</p>"
+            "<p>© 2025 Chuck Finch -Fragillidae Software</p>"
         )
     
     # --- Theme ---
     
+    def _apply_editor_theme(self, editor, theme):
+        """Apply theme to a specific editor instance."""
+        editor.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {theme.editor_bg};
+                color: {theme.editor_text};
+                border: none;
+                selection-background-color: {theme.editor_selection};
+            }}
+        """)
+
     def _apply_theme(self, theme_id: str):
         """Apply a theme to the application and all widgets."""
         from PyQt6.QtWidgets import QApplication
@@ -631,14 +651,7 @@ class MainWindow(QMainWindow):
         for i in range(self.editor_tabs.count()):
             editor = self.editor_tabs.widget(i)
             if editor:
-                editor.setStyleSheet(f"""
-                    QPlainTextEdit {{
-                        background-color: {theme.editor_bg};
-                        color: {theme.editor_text};
-                        border: none;
-                        selection-background-color: {theme.editor_selection};
-                    }}
-                """)
+                self._apply_editor_theme(editor, theme)
         
         # Apply to REPL
         self.repl.output.setStyleSheet(f"""
