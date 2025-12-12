@@ -59,6 +59,8 @@ class FileBrowser(QWidget):
     file_selected = pyqtSignal(str)
     file_created = pyqtSignal(str)
     file_deleted = pyqtSignal(str)
+    bookmarks_changed = pyqtSignal(list)
+    root_path_changed = pyqtSignal(str)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -381,6 +383,7 @@ class FileBrowser(QWidget):
         index = self.model.setRootPath(str(self._root_path))
         self.tree.setRootIndex(index)
         self.title_label.setText(self._root_path.name.upper())
+        self.root_path_changed.emit(str(self._root_path))
 
     def get_root_path(self) -> str | None:
         """Get the current root path."""
@@ -422,10 +425,12 @@ class FileBrowser(QWidget):
         """Add a path to bookmarks."""
         if path not in self._bookmarks:
             self._bookmarks.append(path)
+            self.bookmarks_changed.emit([str(p) for p in self._bookmarks])
             
     def _clear_bookmarks(self):
         """Clear all bookmarks."""
         self._bookmarks.clear()
+        self.bookmarks_changed.emit([])
     
     def get_selected_path(self) -> str | None:
         """Get the currently selected file/folder path.

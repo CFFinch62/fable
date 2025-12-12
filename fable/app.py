@@ -337,6 +337,14 @@ class MainWindow(QMainWindow):
         # File browser -> Editor
         self.file_browser.file_double_clicked.connect(self._open_file_path)
         
+        # File browser persistence
+        self.file_browser.bookmarks_changed.connect(
+            lambda b: (self.settings.set('browser', 'bookmarks', b), self.settings.save())
+        )
+        self.file_browser.root_path_changed.connect(
+            lambda p: (self.settings.set('browser', 'last_directory', p), self.settings.save())
+        )
+        
         # REPL -> Interpreter
         self.repl.input_submitted.connect(self._execute_forth)
         
