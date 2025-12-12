@@ -318,15 +318,13 @@ class MainWindow(QMainWindow):
         self.interpreter.output.connect(self.repl.append_output)
         self.interpreter.error_occurred.connect(self.repl.append_error)
         
-        # Interpreter -> Status bar mode updates
+        # Interpreter -> Status bar and REPL mode updates
         self.interpreter.state_changed.connect(self._update_mode_display)
+        self.interpreter.state_changed.connect(self._update_repl_mode)
         
         # Interpreter -> Stack widget
         self.interpreter.word_starting.connect(self.stack_widget.on_word_starting)
         self.interpreter.word_complete.connect(self.stack_widget.on_word_complete)
-        
-        # Stack widget step button
-        self.stack_widget.step_clicked.connect(self._step)
     
     def _restore_state(self):
         """Restore window geometry and splitter positions."""
@@ -531,6 +529,10 @@ class MainWindow(QMainWindow):
         """Update the mode indicator in status bar."""
         mode = "Compile" if self.interpreter.compiling else "Interpret"
         self.mode_label.setText(mode)
+    
+    def _update_repl_mode(self):
+        """Update REPL prompt for compile/interpret mode."""
+        self.repl.set_compile_mode(self.interpreter.compiling)
     
     # --- Status Bar ---
     

@@ -15,7 +15,7 @@
 | 1 | Application Shell | ✅ Complete | `phase1` |
 | 2 | Forth Interpreter Core | ✅ Complete | `phase2` |
 | 3 | Stack Widget | ✅ Complete | `phase3` |
-| 4 | REPL Integration | ⬜ Not Started | |
+| 4 | REPL Integration | ✅ Complete | `phase4` |
 | 5 | Code Editor | ⬜ Not Started | |
 | 6 | File Browser | ⬜ Not Started | |
 | 7 | Control Flow & Step Mode | ⬜ Not Started | |
