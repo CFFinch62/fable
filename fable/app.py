@@ -261,10 +261,11 @@ class MainWindow(QMainWindow):
     
     def _create_toolbar(self):
         """Create the main toolbar."""
-        toolbar = QToolBar("Main Toolbar")
-        toolbar.setMovable(False)
-        toolbar.setIconSize(QSize(20, 20))
-        toolbar.setStyleSheet("""
+        self.toolbar = QToolBar("Main Toolbar")
+        self.toolbar.setMovable(False)
+        self.toolbar.setIconSize(QSize(20, 20))
+        # Initial style - will be overridden by _apply_theme
+        self.toolbar.setStyleSheet("""
             QToolBar {
                 background-color: #2D2D2D;
                 border: none;
@@ -281,23 +282,23 @@ class MainWindow(QMainWindow):
                 background-color: #3C3C3C;
             }
         """)
-        self.addToolBar(toolbar)
+        self.addToolBar(self.toolbar)
         
         # File actions
-        toolbar.addAction("New", self._new_file)
-        toolbar.addAction("Open", self._open_file)
-        toolbar.addAction("Save", self._save_file)
-        toolbar.addSeparator()
+        self.toolbar.addAction("New", self._new_file)
+        self.toolbar.addAction("Open", self._open_file)
+        self.toolbar.addAction("Save", self._save_file)
+        self.toolbar.addSeparator()
         
         # Edit actions
-        toolbar.addAction("Undo", self._undo)
-        toolbar.addAction("Redo", self._redo) 
-        toolbar.addSeparator()
+        self.toolbar.addAction("Undo", self._undo)
+        self.toolbar.addAction("Redo", self._redo) 
+        self.toolbar.addSeparator()
         
         # Run actions
-        toolbar.addAction("▶ Run", self._run_file)
-        toolbar.addAction("⏸ Step", self._step)
-        toolbar.addAction("⏹ Stop", self._stop)
+        self.toolbar.addAction("▶ Run", self._run_file)
+        self.toolbar.addAction("⏸ Step", self._step)
+        self.toolbar.addAction("⏹ Stop", self._stop)
     
     def _create_statusbar(self):
         """Create the status bar."""
@@ -658,6 +659,26 @@ class MainWindow(QMainWindow):
             }}
         """)
         self.repl.prompt_label.setStyleSheet(f"color: {theme.syntax_logic}; background: transparent;")
+        
+        # Apply to toolbar
+        if hasattr(self, 'toolbar'):
+            self.toolbar.setStyleSheet(f"""
+                QToolBar {{
+                    background-color: {theme.panel};
+                    border: none;
+                    padding: 4px;
+                    spacing: 4px;
+                }}
+                QToolButton {{
+                    background-color: transparent;
+                    border: none;
+                    padding: 6px;
+                    color: {theme.text};
+                }}
+                QToolButton:hover {{
+                    background-color: {theme.border};
+                }}
+            """)
         
         # Apply to file browser
         self.file_browser.setStyleSheet(f"""
