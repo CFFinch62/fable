@@ -138,6 +138,13 @@ class StackSection(QWidget):
         
         if animate:
             item.animate_push(self._animation_duration)
+            
+        # Ensure new item is visible
+        QTimer.singleShot(10, lambda: self._ensure_visible(item))
+    
+    def _ensure_visible(self, item):
+        """Scroll to make item visible."""
+        self.scroll.ensureWidgetVisible(item)
     
     def _remove_item(self, animate: bool = True):
         """Remove top item (pop operation).
@@ -200,6 +207,7 @@ class StackWidget(QWidget):
     """
     
     step_clicked = pyqtSignal()
+    speed_changed = pyqtSignal(int)
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -241,7 +249,7 @@ class StackWidget(QWidget):
         
         # Speed slider
         self.speed_slider = QSlider(Qt.Orientation.Horizontal)
-        self.speed_slider.setRange(50, 500)
+        self.speed_slider.setRange(50, 3000)  # Up to 3 seconds
         self.speed_slider.setValue(150)
         self.speed_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.speed_slider.setStyleSheet("""
@@ -295,6 +303,7 @@ class StackWidget(QWidget):
         """
         self.data_section.set_animation_speed(value)
         self.return_section.set_animation_speed(value)
+        self.speed_changed.emit(value)
     
     def update_data_stack(self, values: List[Any], animate: bool = True):
         """Update the data stack display.

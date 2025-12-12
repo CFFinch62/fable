@@ -351,6 +351,12 @@ class MainWindow(QMainWindow):
         # Interpreter -> Stack widget
         self.interpreter.word_starting.connect(self.stack_widget.on_word_starting)
         self.interpreter.word_complete.connect(self.stack_widget.on_word_complete)
+        
+        # Stack widget -> Interpreter
+        self.stack_widget.speed_changed.connect(self.interpreter.set_delay)
+        
+        # Initialize delay
+        self.interpreter.set_delay(self.stack_widget.speed_slider.value())
     
     def _restore_state(self):
         """Restore window geometry and splitter positions."""

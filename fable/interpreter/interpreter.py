@@ -6,7 +6,7 @@ Forth code and emits signals for GUI integration.
 """
 
 from typing import Any, List, Optional, Callable
-from PyQt6.QtCore import QObject, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QEventLoop
 
 from .lexer import Lexer, Token, TokenType
 from .dictionary import Dictionary, DictionaryEntry
@@ -55,6 +55,7 @@ class ForthInterpreter(QObject):
         self._lexer = Lexer()
         self._current_definition: List = []  # Words being compiled
         self._definition_name: str = ""      # Name of word being defined
+        self.delay = 0  # Execution delay in ms
         
         # Register primitive words
         self._register_primitives()
@@ -164,7 +165,18 @@ class ForthInterpreter(QObject):
             self._execute_compiled(entry.code)
         
         # Emit signal after execution
+        # Emit signal after execution
         self.word_complete.emit(entry.name, list(self.data_stack))
+        
+        # Handle execution delay
+        if self.delay > 0 and self.execution_mode == "run":
+            loop = QEventLoop()
+            QTimer.singleShot(self.delay, loop.quit)
+            loop.exec()
+    
+    def set_delay(self, delay_ms: int):
+        """Set execution delay in milliseconds."""
+        self.delay = delay_ms
     
     def _execute_compiled(self, code: List) -> None:
         """Execute compiled threaded code with control flow support.
