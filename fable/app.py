@@ -585,11 +585,114 @@ class MainWindow(QMainWindow):
     # --- Theme ---
     
     def _apply_theme(self, theme_id: str):
-        """Apply a theme to the application."""
+        """Apply a theme to the application and all widgets."""
         from PyQt6.QtWidgets import QApplication
         theme = get_theme(theme_id)
+        
+        # Apply global stylesheet
         stylesheet = apply_theme(self, theme)
         QApplication.instance().setStyleSheet(stylesheet)
         
+        # Apply to editor tabs
+        self.editor_tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: none;
+                background-color: {theme.editor_bg};
+            }}
+            QTabBar::tab {{
+                background-color: {theme.panel};
+                color: {theme.text_secondary};
+                padding: 8px 16px;
+                border: none;
+                border-right: 1px solid {theme.background};
+            }}
+            QTabBar::tab:selected {{
+                background-color: {theme.editor_bg};
+                color: {theme.text};
+            }}
+            QTabBar::tab:hover:!selected {{
+                background-color: {theme.border};
+            }}
+        """)
+        
+        # Apply to each editor
+        for i in range(self.editor_tabs.count()):
+            editor = self.editor_tabs.widget(i)
+            if editor:
+                editor.setStyleSheet(f"""
+                    QPlainTextEdit {{
+                        background-color: {theme.editor_bg};
+                        color: {theme.editor_text};
+                        border: none;
+                        selection-background-color: {theme.editor_selection};
+                    }}
+                """)
+        
+        # Apply to REPL
+        self.repl.output.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {theme.editor_bg};
+                color: {theme.text};
+                border: none;
+                border-bottom: 1px solid {theme.border};
+                padding: 8px;
+            }}
+        """)
+        self.repl.input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {theme.panel};
+                color: {theme.text};
+                border: none;
+                padding: 8px 8px 8px 50px;
+            }}
+        """)
+        self.repl.prompt_label.setStyleSheet(f"color: {theme.syntax_logic}; background: transparent;")
+        
+        # Apply to file browser
+        self.file_browser.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.panel};
+                color: {theme.text};
+            }}
+        """)
+        self.file_browser.tree.setStyleSheet(f"""
+            QTreeView {{
+                background-color: {theme.panel};
+                color: {theme.text};
+                border: none;
+                outline: none;
+            }}
+            QTreeView::item {{
+                padding: 4px;
+            }}
+            QTreeView::item:selected {{
+                background-color: {theme.accent};
+            }}
+            QTreeView::item:hover {{
+                background-color: {theme.border};
+            }}
+        """)
+        self.file_browser.title_label.setStyleSheet(f"color: {theme.text_secondary};")
+        
+        # Apply to stack widget
+        self.stack_widget.setStyleSheet(f"""
+            QWidget {{
+                background-color: {theme.panel};
+                color: {theme.text};
+            }}
+            QLabel {{
+                color: {theme.text};
+            }}
+        """)
+        
+        # Update splitters
+        for splitter in [self.main_splitter, self.center_splitter]:
+            splitter.setStyleSheet(f"""
+                QSplitter::handle {{
+                    background-color: {theme.border};
+                }}
+            """)
+        
         # Save preference
         self.settings.set_value('appearance', 'theme', theme_id)
+        self._current_theme = theme
