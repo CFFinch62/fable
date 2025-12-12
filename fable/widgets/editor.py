@@ -361,21 +361,11 @@ class ForthEditor(QPlainTextEdit):
             block_number += 1
     
     def highlight_current_line(self):
-        """Highlight the line containing the cursor and matching brackets."""
+        """Handle cursor position changes - bracket matching only."""
         extra_selections = []
         
         if not self.isReadOnly():
-            # Current line highlight
-            selection = QTextEdit.ExtraSelection()
-            selection.format.setBackground(QColor("#2D2D2D"))
-            selection.format.setProperty(
-                selection.format.Property.FullWidthSelection, True
-            )
-            selection.cursor = self.textCursor()
-            selection.cursor.clearSelection()
-            extra_selections.append(selection)
-            
-            # Bracket matching
+            # Bracket matching only (no line highlighting)
             extra_selections.extend(self._find_matching_brackets())
         
         self.setExtraSelections(extra_selections)
