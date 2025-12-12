@@ -17,7 +17,7 @@
 | 3 | Stack Widget | ✅ Complete | `phase3` |
 | 4 | REPL Integration | ✅ Complete | `phase4` |
 | 5 | Code Editor | ✅ Complete | `phase5` |
-| 6 | File Browser | ⬜ Not Started | |
+| 6 | File Browser | ✅ Complete | `phase6` |
 | 7 | Control Flow & Step Mode | ⬜ Not Started | |
 | Fixes | Bug Fixes & Polish | ⬜ Not Started | |
 
