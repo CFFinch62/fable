@@ -36,6 +36,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        self._current_theme = None
         self.settings = get_settings()
         self._setup_window()
         self._create_interpreter()
@@ -44,7 +45,6 @@ class MainWindow(QMainWindow):
         self._create_menus()
         self._create_toolbar()
         self._create_statusbar()
-        self._current_theme = None
         self._restore_state()
         self._connect_signals()
     
