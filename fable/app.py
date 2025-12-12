@@ -807,5 +807,6 @@ class MainWindow(QMainWindow):
             """)
         
         # Save preference
-        self.settings.set_value('appearance', 'theme', theme_id)
+        self.settings.set('appearance', 'theme', theme_id)
+        self.settings.save()
         self._current_theme = theme
