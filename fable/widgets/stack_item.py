@@ -1,11 +1,15 @@
 """
-Individual stack item widget.
-Displays a single value with type indicator and animation support.
+Individual stack item widget with full animation support.
+Displays a single value with type indicator and smooth animations.
 """
 
-from PyQt6.QtCore import Qt, QPropertyAnimation, QPoint, QEasingCurve, pyqtProperty
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel
+from PyQt6.QtCore import (
+    Qt, QPropertyAnimation, QPoint, QEasingCurve, 
+    pyqtProperty, QParallelAnimationGroup, QSequentialAnimationGroup,
+    pyqtSignal, QTimer
+)
+from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QGraphicsOpacityEffect
 
 
 # Type indicator colors
@@ -19,27 +23,33 @@ TYPE_COLORS = {
 
 
 class StackItemWidget(QFrame):
-    """Visual representation of a single stack value.
+    """Visual representation of a single stack value with animations.
     
     Displays the value with a colored type indicator strip on the left.
-    Supports animations for push, pop, and movement.
+    Supports smooth animations for push, pop, highlight, and movement.
+    
+    Signals:
+        animation_finished: Emitted when any animation completes
     
     Attributes:
         value: The stored value
         value_type: Type identifier ('int', 'float', 'addr', 'string', 'bool')
     """
     
+    animation_finished = pyqtSignal()
+    
     def __init__(self, value, value_type: str = "int", parent=None):
         super().__init__(parent)
         self._value = value
         self._value_type = value_type
-        self._opacity = 1.0
         self._setup_ui()
+        self._setup_effects()
+        self._current_animation = None
     
     def _setup_ui(self):
         """Initialize the user interface."""
-        self.setFixedHeight(36)
-        self.setMinimumWidth(100)
+        self.setFixedHeight(40)
+        self.setMinimumWidth(120)
         
         type_color = TYPE_COLORS.get(self._value_type, TYPE_COLORS['int'])
         
@@ -47,25 +57,33 @@ class StackItemWidget(QFrame):
             QFrame {{
                 background-color: #F5F5F5;
                 border: 1px solid #CCCCCC;
-                border-left: 4px solid {type_color};
+                border-left: 5px solid {type_color};
                 border-radius: 4px;
             }}
         """)
         
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setContentsMargins(12, 4, 12, 4)
         
         # Value display
         self.value_label = QLabel(self._format_value())
-        self.value_label.setFont(QFont("Source Code Pro", 14))
-        self.value_label.setStyleSheet("color: #1E1E1E; border: none;")
+        self.value_label.setFont(QFont("Source Code Pro", 14, QFont.Weight.Bold))
+        self.value_label.setStyleSheet("color: #1E1E1E; border: none; background: transparent;")
         layout.addWidget(self.value_label)
         layout.addStretch()
+    
+    def _setup_effects(self):
+        """Set up graphics effects for animations."""
+        self.opacity_effect = QGraphicsOpacityEffect(self)
+        self.opacity_effect.setOpacity(1.0)
+        self.setGraphicsEffect(self.opacity_effect)
     
     def _format_value(self) -> str:
         """Format the value for display."""
         if self._value_type == 'bool':
             return 'TRUE' if self._value else 'FALSE'
+        if isinstance(self._value, float):
+            return f"{self._value:.4f}".rstrip('0').rstrip('.')
         return str(self._value)
     
     @property
@@ -83,64 +101,162 @@ class StackItemWidget(QFrame):
         """Type identifier for color coding."""
         return self._value_type
     
-    # Opacity property for animation
-    def get_opacity(self) -> float:
-        return self._opacity
-    
-    def set_opacity(self, value: float):
-        self._opacity = value
-        self.setWindowOpacity(value)
-    
-    opacity = pyqtProperty(float, get_opacity, set_opacity)
-    
-    def animate_in(self, duration_ms: int = 150):
-        """Animate entrance (fade in + slide down).
+    def animate_push(self, duration_ms: int = 150):
+        """Animate entrance (fade in + slide down from above).
         
         Args:
             duration_ms: Animation duration in milliseconds
         """
-        # Start above and invisible
-        start_pos = self.pos() - QPoint(0, 20)
+        # Start invisible and above final position
+        self.opacity_effect.setOpacity(0)
+        start_pos = self.pos() - QPoint(0, 30)
         end_pos = self.pos()
+        self.move(start_pos)
+        self.show()
+        
+        # Create animation group
+        group = QParallelAnimationGroup(self)
+        
+        # Opacity animation
+        opacity_anim = QPropertyAnimation(self.opacity_effect, b"opacity")
+        opacity_anim.setDuration(duration_ms)
+        opacity_anim.setStartValue(0.0)
+        opacity_anim.setEndValue(1.0)
+        opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        group.addAnimation(opacity_anim)
         
         # Position animation
-        self.pos_anim = QPropertyAnimation(self, b"pos")
-        self.pos_anim.setDuration(duration_ms)
-        self.pos_anim.setStartValue(start_pos)
-        self.pos_anim.setEndValue(end_pos)
-        self.pos_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self.pos_anim.start()
+        pos_anim = QPropertyAnimation(self, b"pos")
+        pos_anim.setDuration(duration_ms)
+        pos_anim.setStartValue(start_pos)
+        pos_anim.setEndValue(end_pos)
+        pos_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        group.addAnimation(pos_anim)
+        
+        group.finished.connect(self.animation_finished.emit)
+        self._current_animation = group
+        group.start()
     
-    def animate_out(self, duration_ms: int = 150):
-        """Animate exit (fade out + slide up).
+    def animate_pop(self, duration_ms: int = 150, on_complete=None):
+        """Animate exit (highlight amber, then fade out + slide up).
         
         Args:
             duration_ms: Animation duration in milliseconds
+            on_complete: Callback function when animation finishes
         """
-        end_pos = self.pos() - QPoint(0, 20)
+        # First highlight amber
+        self._flash_highlight('#D4A017', duration_ms // 2)
         
-        self.pos_anim = QPropertyAnimation(self, b"pos")
-        self.pos_anim.setDuration(duration_ms)
-        self.pos_anim.setStartValue(self.pos())
-        self.pos_anim.setEndValue(end_pos)
-        self.pos_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        self.pos_anim.finished.connect(self.deleteLater)
-        self.pos_anim.start()
+        # Then fade out after highlight
+        QTimer.singleShot(duration_ms // 2, lambda: self._do_pop_animation(duration_ms, on_complete))
     
-    def highlight(self, color: str = "#D4A017", duration_ms: int = 100):
-        """Flash highlight color.
+    def _do_pop_animation(self, duration_ms: int, on_complete=None):
+        """Execute the pop fade-out animation."""
+        end_pos = self.pos() - QPoint(0, 30)
+        
+        group = QParallelAnimationGroup(self)
+        
+        # Opacity animation
+        opacity_anim = QPropertyAnimation(self.opacity_effect, b"opacity")
+        opacity_anim.setDuration(duration_ms)
+        opacity_anim.setStartValue(1.0)
+        opacity_anim.setEndValue(0.0)
+        opacity_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        group.addAnimation(opacity_anim)
+        
+        # Position animation
+        pos_anim = QPropertyAnimation(self, b"pos")
+        pos_anim.setDuration(duration_ms)
+        pos_anim.setStartValue(self.pos())
+        pos_anim.setEndValue(end_pos)
+        pos_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        group.addAnimation(pos_anim)
+        
+        def on_finished():
+            self.animation_finished.emit()
+            self.hide()
+            self.deleteLater()
+            if on_complete:
+                on_complete()
+        
+        group.finished.connect(on_finished)
+        self._current_animation = group
+        group.start()
+    
+    def animate_move_to(self, target_pos: QPoint, duration_ms: int = 300):
+        """Animate movement to a new position.
+        
+        Args:
+            target_pos: Target position
+            duration_ms: Animation duration
+        """
+        anim = QPropertyAnimation(self, b"pos")
+        anim.setDuration(duration_ms)
+        anim.setStartValue(self.pos())
+        anim.setEndValue(target_pos)
+        anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+        anim.finished.connect(self.animation_finished.emit)
+        self._current_animation = anim
+        anim.start()
+    
+    def _flash_highlight(self, color: str, duration_ms: int = 100):
+        """Flash a highlight color briefly.
         
         Args:
             color: Highlight color (hex)
-            duration_ms: Highlight duration
+            duration_ms: Duration of highlight
         """
-        original_style = self.styleSheet()
-        self.setStyleSheet(f"""
+        type_color = TYPE_COLORS.get(self._value_type, TYPE_COLORS['int'])
+        original_style = f"""
             QFrame {{
-                background-color: {color};
+                background-color: #F5F5F5;
                 border: 1px solid #CCCCCC;
-                border-left: 4px solid {color};
+                border-left: 5px solid {type_color};
                 border-radius: 4px;
             }}
-        """)
-        # Would use QTimer to revert, but keeping simple for now
+        """
+        highlight_style = f"""
+            QFrame {{
+                background-color: {color};
+                border: 1px solid {color};
+                border-left: 5px solid {color};
+                border-radius: 4px;
+            }}
+        """
+        self.setStyleSheet(highlight_style)
+        self.value_label.setStyleSheet("color: #1E1E1E; border: none; background: transparent;")
+        QTimer.singleShot(duration_ms, lambda: self.setStyleSheet(original_style))
+    
+    def highlight_consumed(self, enabled: bool = True):
+        """Show/hide consumption preview indicator.
+        
+        Args:
+            enabled: Whether to show the indicator
+        """
+        if enabled:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: rgba(245, 245, 245, 0.5);
+                    border: 2px dashed #808080;
+                    border-left: 5px solid #808080;
+                    border-radius: 4px;
+                }
+            """)
+        else:
+            type_color = TYPE_COLORS.get(self._value_type, TYPE_COLORS['int'])
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: #F5F5F5;
+                    border: 1px solid #CCCCCC;
+                    border-left: 5px solid {type_color};
+                    border-radius: 4px;
+                }}
+            """)
+    
+    def pulse(self, duration_ms: int = 200):
+        """Pulse animation for DUP-like operations.
+        
+        Args:
+            duration_ms: Duration of pulse
+        """
+        self._flash_highlight('#4EC9B0', duration_ms)

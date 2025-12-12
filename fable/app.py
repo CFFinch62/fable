@@ -320,6 +320,13 @@ class MainWindow(QMainWindow):
         
         # Interpreter -> Status bar mode updates
         self.interpreter.state_changed.connect(self._update_mode_display)
+        
+        # Interpreter -> Stack widget
+        self.interpreter.word_starting.connect(self.stack_widget.on_word_starting)
+        self.interpreter.word_complete.connect(self.stack_widget.on_word_complete)
+        
+        # Stack widget step button
+        self.stack_widget.step_clicked.connect(self._step)
     
     def _restore_state(self):
         """Restore window geometry and splitter positions."""

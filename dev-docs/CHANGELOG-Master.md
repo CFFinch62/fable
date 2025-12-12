@@ -14,7 +14,7 @@
 | 0 | Initial Setup | ✅ Complete | `initial` |
 | 1 | Application Shell | ✅ Complete | `phase1` |
 | 2 | Forth Interpreter Core | ✅ Complete | `phase2` |
-| 3 | Stack Widget | ⬜ Not Started | |
+| 3 | Stack Widget | ✅ Complete | `phase3` |
 | 4 | REPL Integration | ⬜ Not Started | |
 | 5 | Code Editor | ⬜ Not Started | |
 | 6 | File Browser | ⬜ Not Started | |
