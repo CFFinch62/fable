@@ -12,7 +12,7 @@
 | Phase | Name | Status | Commit |
 |-------|------|--------|--------|
 | 0 | Initial Setup | ✅ Complete | `initial` |
-| 1 | Application Shell | ⬜ Not Started | |
+| 1 | Application Shell | ✅ Complete | `phase1` |
 | 2 | Forth Interpreter Core | ⬜ Not Started | |
 | 3 | Stack Widget | ⬜ Not Started | |
 | 4 | REPL Integration | ⬜ Not Started | |
