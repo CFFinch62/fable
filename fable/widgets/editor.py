@@ -348,9 +348,9 @@ class ForthEditor(QPlainTextEdit):
                 number = str(block_number + 1)
                 # Highlight current line number
                 if block_number == current_line:
-                    painter.setPen(QColor("#D4D4D4"))
+                    painter.setPen(QColor("#FFFFFF"))
                 else:
-                    painter.setPen(QColor("#808080"))
+                    painter.setPen(QColor("#E0E0E0"))
                 painter.drawText(0, top, self.line_number_area.width() - 5,
                                self.fontMetrics().height(),
                                Qt.AlignmentFlag.AlignRight, number)
