@@ -229,15 +229,15 @@ class StackWidget(QWidget):
         layout.addWidget(self.return_section, stretch=1)
         
         # Control bar
-        controls = QWidget()
-        controls.setStyleSheet("background-color: #2D2D2D;")
-        controls_layout = QHBoxLayout(controls)
+        self.controls_widget = QWidget()
+        self.controls_widget.setStyleSheet("background-color: #2D2D2D;")
+        controls_layout = QHBoxLayout(self.controls_widget)
         controls_layout.setContentsMargins(8, 8, 8, 8)
         
         # Speed label
-        speed_label = QLabel("Speed:")
-        speed_label.setStyleSheet("color: #808080;")
-        controls_layout.addWidget(speed_label)
+        self.speed_label = QLabel("Speed:")
+        self.speed_label.setStyleSheet("color: #808080;")
+        controls_layout.addWidget(self.speed_label)
         
         # Speed slider
         self.speed_slider = QSlider(Qt.Orientation.Horizontal)
@@ -285,7 +285,7 @@ class StackWidget(QWidget):
         self.step_button.clicked.connect(self.step_clicked.emit)
         controls_layout.addWidget(self.step_button)
         
-        layout.addWidget(controls)
+        layout.addWidget(self.controls_widget)
     
     def _on_speed_changed(self, value: int):
         """Handle speed slider change.

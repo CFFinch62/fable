@@ -352,6 +352,17 @@ class MainWindow(QMainWindow):
     
     def _restore_state(self):
         """Restore window geometry and splitter positions."""
+        # Restore theme
+        try:
+            theme_id = self.settings.get('appearance', 'theme', 'dark_default')
+            # Validate theme exists
+            if theme_id not in THEMES:
+                theme_id = 'dark_default'
+            self._apply_theme(theme_id)
+        except Exception as e:
+            print(f"Error restoring theme: {e}")
+            self._apply_theme('dark_default')
+        
         geometry = self.settings.get_bytes('window', 'geometry')
         if geometry:
             self.restoreGeometry(geometry)
@@ -742,6 +753,50 @@ class MainWindow(QMainWindow):
             # Style empty label
             if hasattr(section, 'empty_label'):
                 section.empty_label.setStyleSheet(f"color: {theme.text_muted}; font-style: italic;")
+        
+        # Style stack controls
+        if hasattr(self.stack_widget, 'controls_widget'):
+            self.stack_widget.controls_widget.setStyleSheet(f"background-color: {theme.panel};")
+            
+        if hasattr(self.stack_widget, 'speed_label'):
+            self.stack_widget.speed_label.setStyleSheet(f"color: {theme.text_secondary};")
+            
+        if hasattr(self.stack_widget, 'speed_slider'):
+            self.stack_widget.speed_slider.setStyleSheet(f"""
+                QSlider::groove:horizontal {{
+                    background: {theme.border};
+                    height: 6px;
+                    border-radius: 3px;
+                }}
+                QSlider::handle:horizontal {{
+                    background: {theme.accent};
+                    width: 16px;
+                    margin: -5px 0;
+                    border-radius: 8px;
+                }}
+                QSlider::sub-page:horizontal {{
+                    background: {theme.accent};
+                    border-radius: 3px;
+                }}
+            """)
+            
+        if hasattr(self.stack_widget, 'step_button'):
+            self.stack_widget.step_button.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme.accent};
+                    color: white;
+                    border: none;
+                    padding: 6px 16px;
+                    border-radius: 3px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {theme.accent_hover};
+                }}
+                QPushButton:pressed {{
+                    background-color: {theme.accent};
+                }}
+            """)
         
         # Update splitters
         for splitter in [self.main_splitter, self.center_splitter]:
