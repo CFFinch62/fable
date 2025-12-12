@@ -690,6 +690,11 @@ def _register_control_flow_words(interp: 'ForthInterpreter') -> None:
         """LEAVE - Exit loop immediately."""
         if i.compiling:
             i._current_definition.append(('LEAVE', None))
+
+    def word_unloop(i: 'ForthInterpreter'):
+        """UNLOOP - Discard loop parameters from return stack."""
+        if i.compiling:
+            i._current_definition.append(('UNLOOP', None))
     
     def word_exit(i: 'ForthInterpreter'):
         """EXIT - Exit the current word immediately."""
@@ -712,6 +717,7 @@ def _register_control_flow_words(interp: 'ForthInterpreter') -> None:
         ('I', word_i, '( -- n )', 'Push loop index', True),
         ('J', word_j, '( -- n )', 'Push outer loop index', True),
         ('LEAVE', word_leave, '( -- )', 'Exit loop', True),
+        ('UNLOOP', word_unloop, '( -- )', 'Discard loop params', True),
         ('EXIT', word_exit, '( -- )', 'Exit word', True),
     ]
     

@@ -252,6 +252,11 @@ class ForthInterpreter(QObject):
                             loop_stack[-1] = (limit, index, loop_start)
                             ip = loop_start
                             
+                elif op == 'UNLOOP':
+                    # Discard loop parameters
+                    if loop_stack:
+                        loop_stack.pop()
+
                 elif op == 'I':
                     # Push current loop index
                     if loop_stack:
