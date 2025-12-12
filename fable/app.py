@@ -18,6 +18,7 @@ from fable.widgets.editor import ForthEditor
 from fable.widgets.repl import ForthREPL
 from fable.widgets.stack_widget import StackWidget
 from fable.utils.settings import get_settings
+from fable.interpreter.interpreter import ForthInterpreter
 
 
 class MainWindow(QMainWindow):
@@ -36,6 +37,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.settings = get_settings()
         self._setup_window()
+        self._create_interpreter()
         self._create_widgets()
         self._create_layout()
         self._create_menus()
@@ -49,6 +51,10 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("FABLE - Forth Animated Beginners Learning Environment")
         self.setMinimumSize(800, 600)
         self.resize(1280, 800)
+    
+    def _create_interpreter(self):
+        """Create and configure the Forth interpreter."""
+        self.interpreter = ForthInterpreter(self)
     
     def _create_widgets(self):
         """Create all child widgets."""
@@ -305,8 +311,15 @@ class MainWindow(QMainWindow):
         # File browser -> Editor
         self.file_browser.file_double_clicked.connect(self._open_file_path)
         
-        # Update cursor position in status bar
-        # Will be connected when editor is available
+        # REPL -> Interpreter
+        self.repl.input_submitted.connect(self._execute_forth)
+        
+        # Interpreter -> REPL output
+        self.interpreter.output.connect(self.repl.append_output)
+        self.interpreter.error_occurred.connect(self.repl.append_error)
+        
+        # Interpreter -> Status bar mode updates
+        self.interpreter.state_changed.connect(self._update_mode_display)
     
     def _restore_state(self):
         """Restore window geometry and splitter positions."""
@@ -458,33 +471,45 @@ class MainWindow(QMainWindow):
     
     # --- Run Operations ---
     
+    def _execute_forth(self, code: str):
+        """Execute Forth code and handle errors.
+        
+        Args:
+            code: Forth source code to execute
+        """
+        try:
+            self.interpreter.evaluate(code)
+        except Exception as e:
+            # Error already emitted via signal
+            pass
+    
     def _run_file(self):
         """Run the entire current file."""
         editor = self.editor_tabs.currentWidget()
         if editor:
             code = editor.toPlainText()
-            # TODO: Send to interpreter
-            self.repl.append_output(f"[Running file...]\n")
+            if code.strip():
+                self._execute_forth(code)
     
     def _run_selection(self):
         """Run selected text."""
         editor = self.editor_tabs.currentWidget()
         if editor:
             code = editor.get_selected_text()
-            # TODO: Send to interpreter
-            self.repl.append_output(f"[Running selection: {code[:50]}...]\n")
+            if code.strip():
+                self._execute_forth(code)
     
     def _run_line(self):
         """Run current line."""
         editor = self.editor_tabs.currentWidget()
         if editor:
             code = editor.get_current_line()
-            # TODO: Send to interpreter
-            self.repl.append_output(f"[Running: {code}]\n")
+            if code.strip():
+                self._execute_forth(code)
     
     def _step(self):
         """Step through code."""
-        self.repl.append_output("[Step]\n")
+        self.repl.append_output("[Step mode not yet implemented]\n")
     
     def _stop(self):
         """Stop execution."""
@@ -492,7 +517,13 @@ class MainWindow(QMainWindow):
     
     def _reset_interpreter(self):
         """Reset the interpreter."""
+        self.interpreter.reset()
         self.repl.append_output("[Interpreter reset]\n")
+    
+    def _update_mode_display(self):
+        """Update the mode indicator in status bar."""
+        mode = "Compile" if self.interpreter.compiling else "Interpret"
+        self.mode_label.setText(mode)
     
     # --- Status Bar ---
     
