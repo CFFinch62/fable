@@ -6,12 +6,49 @@
 
 ## Introduction
 
-FABLE is an educational Forth programming environment designed for beginners. It features:
+FABLE is an education-focused IDE designed to teach the Forth programming language through visualization. It makes the abstract concept of a stack concrete by showing you exactly what happens with every operation.
 
-- **Visual stack animations** — See how stack operations work
-- **Syntax highlighting** — Color-coded Forth code
-- **Interactive REPL** — Immediate feedback on commands
-- **Step-through debugging** — Watch code execute step by step
+**Key Features:**
+- **Visual Stack** — Color-coded, animated stack visualization
+- **Smart Editor** — Syntax highlighting, line numbers, and auto-indentation
+- **Project Management** — File browser with bookmarks and persistence
+- **Interactive REPL** — Immediate feedback loop for testing code
+- **Theming** — Dark and Light modes to suit your preference
+
+---
+
+## Interface Guide
+
+### 1. File Browser
+Navigate your project files easily.
+- **Bookmarks (★)**: Click the star icon to bookmark the current folder. Click it again to jump to saved locations.
+- **Persistence**: FABLE remembers your last open folder and bookmarks between sessions.
+- **Context Menu**: Right-click files to Rename, Delete, or Reveal in your system file manager.
+
+### 2. The Editor
+A robust code editor for writing Forth source files (`.fs`, `.fth`).
+- **Theming**: Switch between Dark and Light themes via the `View > Theme` menu.
+- **Line Numbers**: Brightly colored for easy readability.
+
+### 3. Stack Visualizer
+The heart of FABLE. It visualizes both the **Data Stack** (left) and **Return Stack** (right).
+
+#### **Color Legend**
+Items on the stack are color-coded by type:
+- 🔵 **Blue**: Integer numbers
+- 🟢 **Green**: Floating-point numbers
+- 🟣 **Purple**: Strings
+- ⚪ **Teal**: Booleans (includes `TRUE`/-1 and `FALSE`/0)
+- 🟠 **Orange**: Addresses
+
+#### **Animation Speed**
+Control how fast code executes using the slider at the bottom of the stack panel:
+- **Slide Right**: **Faster** (Reduced delay)
+- **Slide Left**: **Slower** (Increased delay for debugging)
+- **Step Button**: Execute one word at a time for precise inspection.
+
+### 4. The REPL
+The Read-Eval-Print Loop allows you to type Forth commands and execute them immediately. Great for testing small snippets or checking the value of words.
 
 ---
 
@@ -23,225 +60,93 @@ FABLE is an educational Forth programming environment designed for beginners. It
 python3 main.py
 ```
 
-### Your First Forth Commands
+### Your First Commands
 
-Type in the REPL at the bottom:
-
-```forth
-42                  \ Push 42 onto the stack
-.                   \ Pop and print: 42
-3 4 +               \ Push 3, push 4, add them
-.                   \ Print: 7
-```
-
-### Understanding the Stack
-
-Forth uses a stack to hold values. Numbers push onto the stack, operations pop values and push results:
+Type in the REPL:
 
 ```forth
-5 3 -    \ 5 - 3 = 2 (left on stack)
-2 *      \ 2 * 2 = 4
-.        \ prints 4
+42 .                \ Push 42, then print it
+1 2 + .             \ Push 1, 2, add them, print result (3)
+: SQR DUP * ;       \ Define a word to square a number
+5 SQR .             \ Uses SQR to print 25
 ```
 
 ---
 
-## Interface Overview
-
-| Panel | Description |
-|-------|-------------|
-| **Editor** | Write and edit Forth programs |
-| **File Browser** | Navigate project files |
-| **Stack Display** | Watch stack operations animate |
-| **REPL** | Interactive command line |
-
-### Keyboard Shortcuts
+## Common Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| Ctrl+N | New file |
-| Ctrl+O | Open file |
-| Ctrl+S | Save file |
-| Ctrl+R | Run current file |
-| F5 | Run selection |
-| F10 | Step execution |
+| **Ctrl+N** | New file |
+| **Ctrl+O** | Open file |
+| **Ctrl+S** | Save file |
+| **Ctrl+R** | Run current file |
+| **F5** | Run selected text |
+| **F10** | Step execution |
+| **Ctrl+W** | Close tab |
+| **Ctrl+Q** | Quit FABLE |
 
 ---
 
-## Stack Operations
+## Forth Reference
 
-### Basic Operations
+### Stack Manipulation
 
 | Word | Stack Effect | Description |
 |------|--------------|-------------|
-| DUP | ( n -- n n ) | Duplicate top |
-| DROP | ( n -- ) | Remove top |
-| SWAP | ( n1 n2 -- n2 n1 ) | Exchange top two |
-| OVER | ( n1 n2 -- n1 n2 n1 ) | Copy second to top |
-| ROT | ( n1 n2 n3 -- n2 n3 n1 ) | Rotate third to top |
+| `DUP` | ( n -- n n ) | Duplicate top item |
+| `DROP` | ( n -- ) | Discard top item |
+| `SWAP` | ( a b -- b a ) | Swap top two items |
+| `OVER` | ( a b -- a b a ) | Copy second item to top |
+| `ROT` | ( a b c -- b c a ) | Rotate third item to top |
+| `-ROT` | ( a b c -- c a b ) | Rotate top item to third |
+| `NIP` | ( a b -- b ) | Drop item below top |
+| `TUCK` | ( a b -- b a b ) | Tuck top item below second |
+| `.S` | ( -- ) | **Debug**: Print entire stack without modifying it |
 
-### Examples
+### Arithmetic
 
+| Word | Description | Example |
+|------|-------------|---------|
+| `+` | Add | `3 4 +` → `7` |
+| `-` | Subtract | `5 2 -` → `3` |
+| `*` | Multiply | `3 3 *` → `9` |
+| `/` | Integer Divide | `10 3 /` → `3` |
+| `MOD` | Modulo (Remainder) | `10 3 MOD` → `1` |
+| `/MOD` | Div & Mod | `10 3 /MOD` → `1 3` |
+
+### Control Flow
+
+**Conditionals:**
 ```forth
-1 2 DUP     \ Stack: 1 2 2
-1 2 3 ROT   \ Stack: 2 3 1
-5 3 SWAP    \ Stack: 3 5
+: CHECK ( n -- )
+  0= IF ." Zero!" ELSE ." Non-zero!" THEN ;
+```
+
+**Counted Loops:**
+```forth
+: COUNT-UP ( n -- )
+  0 DO I . LOOP ;  \ Prints 0 to n-1
+```
+*Use `UNLOOP` to exit a loop context cleanly if jumping out early.*
+
+**Indefinite Loops:**
+```forth
+: WAIT-FOR-KEY
+  BEGIN KEY? UNTIL ; \ Loops until a key is pressed
 ```
 
 ---
 
-## Arithmetic
+## Troubleshooting
 
-| Word | Stack Effect | Description |
-|------|--------------|-------------|
-| + | ( n1 n2 -- sum ) | Add |
-| - | ( n1 n2 -- diff ) | Subtract |
-| * | ( n1 n2 -- prod ) | Multiply |
-| / | ( n1 n2 -- quot ) | Divide |
-| MOD | ( n1 n2 -- rem ) | Remainder |
-| NEGATE | ( n -- -n ) | Negate |
-| ABS | ( n -- \|n\| ) | Absolute value |
-
-### Examples
-
-```forth
-10 3 /      \ Integer division: 3
-10 3 MOD    \ Remainder: 1
--5 ABS      \ Absolute value: 5
-```
+- **"Unknown word":** Check for typos. Forth is case-insensitive in FABLE, but standard Forth is often case-sensitive.
+- **"Stack Underflow":** You tried to pop more items than were on the stack. Use `.S` to check stack depth.
+- **Loops not matching:** Ensure every `DO` has a `LOOP` (or `+LOOP`) and every `IF` has a `THEN`.
 
 ---
 
-## Comparison & Logic
+## Credits
 
-| Word | Stack Effect | Description |
-|------|--------------|-------------|
-| = | ( n1 n2 -- flag ) | Equal |
-| < | ( n1 n2 -- flag ) | Less than |
-| > | ( n1 n2 -- flag ) | Greater than |
-| 0= | ( n -- flag ) | Equal to zero |
-| AND | ( n1 n2 -- n ) | Bitwise AND |
-| OR | ( n1 n2 -- n ) | Bitwise OR |
-| NOT | ( flag -- flag ) | Logical NOT |
-
-Forth uses -1 for TRUE and 0 for FALSE.
-
----
-
-## Defining Words
-
-Create new words with `:` (colon) and `;` (semicolon):
-
-```forth
-: SQUARE DUP * ;
-5 SQUARE .          \ prints 25
-
-: CUBE DUP DUP * * ;
-3 CUBE .            \ prints 27
-```
-
----
-
-## Control Flow
-
-### Conditionals
-
-```forth
-: ABS DUP 0< IF NEGATE THEN ;
-: MAX 2DUP < IF SWAP THEN DROP ;
-```
-
-### Counted Loops
-
-```forth
-: STARS 0 DO 42 EMIT LOOP ;
-5 STARS             \ prints *****
-
-: SQUARES 5 0 DO I DUP * . LOOP ;
-SQUARES             \ prints 0 1 4 9 16
-```
-
-### Indefinite Loops
-
-```forth
-: COUNTDOWN
-  10 BEGIN
-    DUP . 1-
-    DUP 0=
-  UNTIL DROP ;
-```
-
----
-
-## Output
-
-| Word | Description |
-|------|-------------|
-| . | Print and remove top value |
-| .S | Show entire stack |
-| CR | Print newline |
-| SPACE | Print a space |
-| EMIT | Print character (ASCII) |
-| WORDS | List all defined words |
-
----
-
-## Tips for Beginners
-
-1. **Think in stacks** — Values go on, operations take them off
-2. **Read right to left** — `3 4 +` means "push 3, push 4, add"
-3. **Use .S often** — Check your stack state
-4. **Define small words** — Build up from simple pieces
-5. **Watch the animations** — They show what's happening
-
----
-
-## Example Programs
-
-### Factorial
-
-```forth
-: FACTORIAL
-  DUP 1 <= IF DROP 1 EXIT THEN
-  DUP 1- RECURSE *
-;
-5 FACTORIAL .       \ prints 120
-```
-
-### Fibonacci
-
-```forth
-: FIB
-  0 1 ROT 0 DO
-    OVER + SWAP
-  LOOP DROP
-;
-10 FIB .            \ prints 55
-```
-
-### Temperature Conversion
-
-```forth
-: F>C 32 - 5 * 9 / ;
-: C>F 9 * 5 / 32 + ;
-
-212 F>C .           \ prints 100
-100 C>F .           \ prints 212
-```
-
----
-
-## Error Messages
-
-FABLE provides helpful error messages:
-
-- **Stack underflow** — Not enough values on stack
-- **Unknown word** — Word not defined (check spelling)
-- **Division by zero** — Cannot divide by zero
-
----
-
-## Further Learning
-
-- [Starting Forth](https://www.forth.com/starting-forth/) — Classic tutorial
-- [Thinking Forth](http://thinking-forth.sourceforge.net/) — Philosophy of Forth
+© 2025 Chuck Finch - Fragillidae Software
+Forth logic based on standard ANS Forth specificiations.
