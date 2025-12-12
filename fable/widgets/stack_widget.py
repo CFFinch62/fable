@@ -249,8 +249,8 @@ class StackWidget(QWidget):
         
         # Speed slider
         self.speed_slider = QSlider(Qt.Orientation.Horizontal)
-        self.speed_slider.setRange(50, 3000)  # Up to 3 seconds
-        self.speed_slider.setValue(150)
+        self.speed_slider.setRange(0, 100)
+        self.speed_slider.setValue(90)  # Default to fast (~300ms)
         self.speed_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.speed_slider.setStyleSheet("""
             QSlider::groove:horizontal {
@@ -295,15 +295,20 @@ class StackWidget(QWidget):
         
         layout.addWidget(self.controls_widget)
     
+    def get_current_delay(self) -> int:
+        """Calculate delay in ms from slider value."""
+        # Invert: 0 (left/slow) -> 3000ms, 100 (right/fast) -> 10ms
+        value = self.speed_slider.value()
+        max_delay = 3000
+        min_delay = 10
+        return int(max_delay - (value / 100.0) * (max_delay - min_delay))
+
     def _on_speed_changed(self, value: int):
-        """Handle speed slider change.
-        
-        Args:
-            value: New duration in ms (lower = faster)
-        """
-        self.data_section.set_animation_speed(value)
-        self.return_section.set_animation_speed(value)
-        self.speed_changed.emit(value)
+        """Handle speed slider change."""
+        delay = self.get_current_delay()
+        self.data_section.set_animation_speed(delay)
+        self.return_section.set_animation_speed(delay)
+        self.speed_changed.emit(delay)
     
     def update_data_stack(self, values: List[Any], animate: bool = True):
         """Update the data stack display.

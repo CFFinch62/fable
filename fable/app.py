@@ -365,7 +365,7 @@ class MainWindow(QMainWindow):
         self.stack_widget.speed_changed.connect(self.interpreter.set_delay)
         
         # Initialize delay
-        self.interpreter.set_delay(self.stack_widget.speed_slider.value())
+        self.interpreter.set_delay(self.stack_widget.get_current_delay())
     
     def _restore_state(self):
         """Restore window geometry and splitter positions."""
