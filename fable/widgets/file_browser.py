@@ -60,9 +60,9 @@ class FileBrowser(QWidget):
     file_created = pyqtSignal(str)
     file_deleted = pyqtSignal(str)
     
-    def __init__(self, parent=None):
         super().__init__(parent)
         self._root_path: Path | None = None
+        self._bookmarks: list[Path] = []
         self._setup_ui()
         self._setup_context_menu()
     
@@ -91,6 +91,33 @@ class FileBrowser(QWidget):
         self.title_label.setStyleSheet("color: #808080;")
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
+        
+        # Bookmarks button
+        from PyQt6.QtWidgets import QToolButton
+        self.bookmarks_btn = QToolButton()
+        self.bookmarks_btn.setText("★")
+        self.bookmarks_btn.setToolTip("Bookmarks")
+        self.bookmarks_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.bookmarks_btn.setStyleSheet("""
+            QToolButton {
+                background: transparent;
+                color: #808080;
+                border: none;
+                font-size: 14px;
+                padding: 0 4px;
+            }
+            QToolButton::menu-indicator {
+                image: none;
+            }
+            QToolButton:hover {
+                color: #D4D4D4;
+            }
+        """)
+        
+        self.bookmarks_menu = QMenu(self)
+        self.bookmarks_menu.aboutToShow.connect(self._update_bookmarks_menu)
+        self.bookmarks_btn.setMenu(self.bookmarks_menu)
+        header_layout.addWidget(self.bookmarks_btn)
         
         layout.addWidget(self.header)
         
@@ -353,6 +380,51 @@ class FileBrowser(QWidget):
         index = self.model.setRootPath(str(self._root_path))
         self.tree.setRootIndex(index)
         self.title_label.setText(self._root_path.name.upper())
+
+    def get_root_path(self) -> str | None:
+        """Get the current root path."""
+        return str(self._root_path) if self._root_path else None
+        
+    def set_bookmarks(self, paths: list[str]):
+        """Set list of bookmarked paths."""
+        self._bookmarks = [Path(p) for p in paths if p]
+        
+    def get_bookmarks(self) -> list[str]:
+        """Get list of bookmarked paths."""
+        return [str(p) for p in self._bookmarks]
+        
+    def _update_bookmarks_menu(self):
+        """Rebuild the bookmarks menu."""
+        self.bookmarks_menu.clear()
+        
+        # Add current
+        if self._root_path and self._root_path not in self._bookmarks:
+            action = self.bookmarks_menu.addAction(f"Bookmark '{self._root_path.name}'")
+            action.triggered.connect(lambda: self._add_bookmark(self._root_path))
+            self.bookmarks_menu.addSeparator()
+            
+        # List bookmarks
+        if not self._bookmarks:
+            disabled = self.bookmarks_menu.addAction("(No bookmarks)")
+            disabled.setEnabled(False)
+        else:
+            for path in self._bookmarks:
+                action = self.bookmarks_menu.addAction(path.name)
+                action.setToolTip(str(path))
+                action.triggered.connect(lambda checked, p=path: self.set_root_path(p))
+            
+            self.bookmarks_menu.addSeparator()
+            clear_action = self.bookmarks_menu.addAction("Clear Bookmarks")
+            clear_action.triggered.connect(self._clear_bookmarks)
+            
+    def _add_bookmark(self, path: Path):
+        """Add a path to bookmarks."""
+        if path not in self._bookmarks:
+            self._bookmarks.append(path)
+            
+    def _clear_bookmarks(self):
+        """Clear all bookmarks."""
+        self._bookmarks.clear()
     
     def get_selected_path(self) -> str | None:
         """Get the currently selected file/folder path.

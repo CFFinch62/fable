@@ -387,6 +387,14 @@ class MainWindow(QMainWindow):
         repl_visible = self.settings.get('panels', 'repl_visible', True)
         self.repl.setVisible(repl_visible)
         self.toggle_repl_action.setChecked(repl_visible)
+        
+        # Restore file browser state
+        last_dir = self.settings.get('browser', 'last_directory')
+        if last_dir and os.path.isdir(last_dir):
+            self.file_browser.set_root_path(last_dir)
+            
+        bookmarks = self.settings.get('browser', 'bookmarks', [])
+        self.file_browser.set_bookmarks(bookmarks)
     
     def closeEvent(self, event):
         """Save state before closing."""
@@ -394,6 +402,13 @@ class MainWindow(QMainWindow):
         self.settings.set_bytes('window', 'state', self.saveState())
         self.settings.set('panels', 'file_browser_visible', self.file_browser.isVisible())
         self.settings.set('panels', 'repl_visible', self.repl.isVisible())
+        
+        # Save file browser state
+        root_path = self.file_browser.get_root_path()
+        if root_path:
+            self.settings.set('browser', 'last_directory', root_path)
+        self.settings.set('browser', 'bookmarks', self.file_browser.get_bookmarks())
+        
         self.settings.save()
         event.accept()
     
