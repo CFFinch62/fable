@@ -81,9 +81,9 @@ class FileBrowser(QWidget):
         layout.setSpacing(0)
         
         # Header
-        header = QWidget()
-        header.setStyleSheet("background-color: #2D2D2D; padding: 8px;")
-        header_layout = QHBoxLayout(header)
+        self.header = QWidget()
+        self.header.setStyleSheet("background-color: #2D2D2D; padding: 8px;")
+        header_layout = QHBoxLayout(self.header)
         header_layout.setContentsMargins(8, 8, 8, 8)
         
         self.title_label = QLabel("EXPLORER")
@@ -92,7 +92,7 @@ class FileBrowser(QWidget):
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
         
-        layout.addWidget(header)
+        layout.addWidget(self.header)
         
         # File system model
         self.model = ForthFileSystemModel()

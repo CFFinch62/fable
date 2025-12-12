@@ -672,18 +672,53 @@ class MainWindow(QMainWindow):
                 background-color: {theme.border};
             }}
         """)
-        self.file_browser.title_label.setStyleSheet(f"color: {theme.text_secondary};")
+        self.file_browser.header.setStyleSheet(f"background-color: {theme.panel}; padding: 8px;")
+        self.file_browser.title_label.setStyleSheet(f"color: {theme.text_secondary}; background: transparent;")
         
-        # Apply to stack widget
-        self.stack_widget.setStyleSheet(f"""
+        # Apply to stack widget - need to style deeply
+        stack_style = f"""
             QWidget {{
                 background-color: {theme.panel};
                 color: {theme.text};
             }}
             QLabel {{
                 color: {theme.text};
+                background-color: transparent;
             }}
-        """)
+            QScrollArea {{
+                background-color: {theme.editor_bg};
+                border: none;
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background-color: {theme.editor_bg};
+            }}
+            QSlider::groove:horizontal {{
+                background-color: {theme.border};
+                height: 4px;
+            }}
+            QSlider::handle:horizontal {{
+                background-color: {theme.accent};
+                width: 16px;
+                margin: -6px 0;
+                border-radius: 8px;
+            }}
+            QPushButton {{
+                background-color: {theme.panel};
+                color: {theme.text};
+                border: 1px solid {theme.border};
+                padding: 4px 12px;
+            }}
+            QPushButton:hover {{
+                background-color: {theme.border};
+            }}
+        """
+        self.stack_widget.setStyleSheet(stack_style)
+        
+        # Style stack sections headers
+        if hasattr(self.stack_widget, 'data_section'):
+            self.stack_widget.data_section.setStyleSheet(stack_style)
+        if hasattr(self.stack_widget, 'return_section'):
+            self.stack_widget.return_section.setStyleSheet(stack_style)
         
         # Update splitters
         for splitter in [self.main_splitter, self.center_splitter]:
