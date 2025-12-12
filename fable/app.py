@@ -18,6 +18,7 @@ from fable.widgets.editor import ForthEditor
 from fable.widgets.repl import ForthREPL
 from fable.widgets.stack_widget import StackWidget
 from fable.utils.settings import get_settings
+from fable.utils.themes import THEMES, get_theme, apply_theme, DARK_THEMES, LIGHT_THEMES
 from fable.interpreter.interpreter import ForthInterpreter
 
 
@@ -202,6 +203,29 @@ class MainWindow(QMainWindow):
         self.toggle_repl_action.setChecked(True)
         self.toggle_repl_action.triggered.connect(self._toggle_repl)
         view_menu.addAction(self.toggle_repl_action)
+        
+        view_menu.addSeparator()
+        
+        # Theme submenu
+        theme_menu = view_menu.addMenu("&Theme")
+        
+        # Dark themes
+        dark_menu = theme_menu.addMenu("Dark Themes")
+        for theme_id in DARK_THEMES:
+            theme = THEMES[theme_id]
+            action = QAction(theme.name, self)
+            action.setData(theme_id)
+            action.triggered.connect(lambda checked, tid=theme_id: self._apply_theme(tid))
+            dark_menu.addAction(action)
+        
+        # Light themes
+        light_menu = theme_menu.addMenu("Light Themes")
+        for theme_id in LIGHT_THEMES:
+            theme = THEMES[theme_id]
+            action = QAction(theme.name, self)
+            action.setData(theme_id)
+            action.triggered.connect(lambda checked, tid=theme_id: self._apply_theme(tid))
+            light_menu.addAction(action)
         
         # Run menu
         run_menu = menubar.addMenu("&Run")
@@ -557,3 +581,15 @@ class MainWindow(QMainWindow):
             "<p>Version 0.1.0</p>"
             "<p>© 2025 Chuck / Fragillidae Software</p>"
         )
+    
+    # --- Theme ---
+    
+    def _apply_theme(self, theme_id: str):
+        """Apply a theme to the application."""
+        from PyQt6.QtWidgets import QApplication
+        theme = get_theme(theme_id)
+        stylesheet = apply_theme(self, theme)
+        QApplication.instance().setStyleSheet(stylesheet)
+        
+        # Save preference
+        self.settings.set_value('appearance', 'theme', theme_id)
