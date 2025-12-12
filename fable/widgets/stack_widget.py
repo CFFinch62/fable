@@ -56,32 +56,16 @@ class StackSection(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # Header
-        header = QLabel(self._title)
-        header.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        header.setStyleSheet("""
-            QLabel {
-                color: #808080;
-                padding: 8px;
-                background-color: #2D2D2D;
-            }
-        """)
-        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(header)
+        # Header - no hardcoded style, will be themed
+        self.header = QLabel(self._title)
+        self.header.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.header)
         
-        # Scroll area for items
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                background-color: #1E1E1E;
-                border: none;
-            }
-            QScrollArea > QWidget > QWidget {
-                background-color: #1E1E1E;
-            }
-        """)
+        # Scroll area for items - no hardcoded style, will be themed
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         
         # Container for stack items
         self.container = QWidget()
@@ -90,12 +74,11 @@ class StackSection(QWidget):
         self.container_layout.setSpacing(6)
         self.container_layout.addStretch()  # Push items to bottom
         
-        scroll.setWidget(self.container)
-        layout.addWidget(scroll)
+        self.scroll.setWidget(self.container)
+        layout.addWidget(self.scroll)
         
         # Empty indicator
         self.empty_label = QLabel("(empty)")
-        self.empty_label.setStyleSheet("color: #606060; font-style: italic;")
         self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.container_layout.insertWidget(0, self.empty_label)
     

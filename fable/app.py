@@ -714,11 +714,34 @@ class MainWindow(QMainWindow):
         """
         self.stack_widget.setStyleSheet(stack_style)
         
-        # Style stack sections headers
-        if hasattr(self.stack_widget, 'data_section'):
-            self.stack_widget.data_section.setStyleSheet(stack_style)
-        if hasattr(self.stack_widget, 'return_section'):
-            self.stack_widget.return_section.setStyleSheet(stack_style)
+        # Style stack sections components directly
+        for section in [self.stack_widget.data_section, self.stack_widget.return_section]:
+            # Apply base style to section widget
+            section.setStyleSheet(stack_style)
+            
+            # Style header if exposed
+            if hasattr(section, 'header'):
+                section.header.setStyleSheet(f"""
+                    background-color: {theme.panel}; 
+                    color: {theme.text_secondary}; 
+                    padding: 8px;
+                """)
+            
+            # Style scroll area
+            if hasattr(section, 'scroll'):
+                section.scroll.setStyleSheet(f"""
+                    QScrollArea {{
+                        background-color: {theme.editor_bg};
+                        border: none;
+                    }}
+                    QScrollArea > QWidget > QWidget {{
+                        background-color: {theme.editor_bg};
+                    }}
+                """)
+                
+            # Style empty label
+            if hasattr(section, 'empty_label'):
+                section.empty_label.setStyleSheet(f"color: {theme.text_muted}; font-style: italic;")
         
         # Update splitters
         for splitter in [self.main_splitter, self.center_splitter]:
