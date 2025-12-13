@@ -221,8 +221,8 @@ class ForthREPL(QWidget):
         if not text:
             return
         
-        # Handle special REPL commands
-        if text.upper() == 'CLEAR':
+        # Handle special REPL commands (use CLS to avoid conflict with Forth CLEAR)
+        if text.upper() == 'CLS':
             self.clear()
             self.input.clear()
             return

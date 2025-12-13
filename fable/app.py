@@ -565,6 +565,7 @@ class MainWindow(QMainWindow):
     
     def _run_file(self):
         """Run the entire current file."""
+        self.interpreter.execution_mode = "run"
         editor = self.editor_tabs.currentWidget()
         if editor:
             code = editor.toPlainText()
@@ -573,6 +574,7 @@ class MainWindow(QMainWindow):
     
     def _run_selection(self):
         """Run selected text."""
+        self.interpreter.execution_mode = "run"
         editor = self.editor_tabs.currentWidget()
         if editor:
             code = editor.get_selected_text()
@@ -581,6 +583,7 @@ class MainWindow(QMainWindow):
     
     def _run_line(self):
         """Run current line."""
+        self.interpreter.execution_mode = "run"
         editor = self.editor_tabs.currentWidget()
         if editor:
             code = editor.get_current_line()
@@ -589,11 +592,21 @@ class MainWindow(QMainWindow):
     
     def _step(self):
         """Step through code."""
-        self.repl.append_output("[Step mode not yet implemented]\n")
+        if self.interpreter.is_running():
+            self.interpreter.execution_mode = "step"
+            self.interpreter.step()
+        else:
+            self.interpreter.execution_mode = "step"
+            editor = self.editor_tabs.currentWidget()
+            if editor:
+                code = editor.toPlainText()
+                if code.strip():
+                    self._execute_forth(code)
     
     def _stop(self):
         """Stop execution."""
-        self.repl.append_output("[Stop]\n")
+        self.interpreter.stop()
+        self.repl.append_output("[Stopped]\n")
     
     def _reset_interpreter(self):
         """Reset the interpreter."""

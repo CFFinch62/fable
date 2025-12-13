@@ -102,40 +102,29 @@ class StackItemWidget(QFrame):
         return self._value_type
     
     def animate_push(self, duration_ms: int = 150):
-        """Animate entrance (fade in + slide down from above).
-        
+        """Animate entrance (fade in from transparent).
+
         Args:
             duration_ms: Animation duration in milliseconds
+
+        Note: We only animate opacity, not position, because the layout
+        manager handles positioning. Animating position interferes with
+        the layout and causes overlapping items.
         """
-        # Start invisible and above final position
+        # Start invisible
         self.opacity_effect.setOpacity(0)
-        start_pos = self.pos() - QPoint(0, 30)
-        end_pos = self.pos()
-        self.move(start_pos)
         self.show()
-        
-        # Create animation group
-        group = QParallelAnimationGroup(self)
-        
-        # Opacity animation
+
+        # Fade in animation only
         opacity_anim = QPropertyAnimation(self.opacity_effect, b"opacity")
         opacity_anim.setDuration(duration_ms)
         opacity_anim.setStartValue(0.0)
         opacity_anim.setEndValue(1.0)
         opacity_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        group.addAnimation(opacity_anim)
-        
-        # Position animation
-        pos_anim = QPropertyAnimation(self, b"pos")
-        pos_anim.setDuration(duration_ms)
-        pos_anim.setStartValue(start_pos)
-        pos_anim.setEndValue(end_pos)
-        pos_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        group.addAnimation(pos_anim)
-        
-        group.finished.connect(self.animation_finished.emit)
-        self._current_animation = group
-        group.start()
+
+        opacity_anim.finished.connect(self.animation_finished.emit)
+        self._current_animation = opacity_anim
+        opacity_anim.start()
     
     def animate_pop(self, duration_ms: int = 150, on_complete=None):
         """Animate exit (highlight amber, then fade out + slide up).
@@ -151,37 +140,28 @@ class StackItemWidget(QFrame):
         QTimer.singleShot(duration_ms // 2, lambda: self._do_pop_animation(duration_ms, on_complete))
     
     def _do_pop_animation(self, duration_ms: int, on_complete=None):
-        """Execute the pop fade-out animation."""
-        end_pos = self.pos() - QPoint(0, 30)
-        
-        group = QParallelAnimationGroup(self)
-        
-        # Opacity animation
+        """Execute the pop fade-out animation.
+
+        Note: We only animate opacity, not position, to avoid
+        interfering with the layout manager.
+        """
+        # Fade out animation only
         opacity_anim = QPropertyAnimation(self.opacity_effect, b"opacity")
         opacity_anim.setDuration(duration_ms)
         opacity_anim.setStartValue(1.0)
         opacity_anim.setEndValue(0.0)
         opacity_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        group.addAnimation(opacity_anim)
-        
-        # Position animation
-        pos_anim = QPropertyAnimation(self, b"pos")
-        pos_anim.setDuration(duration_ms)
-        pos_anim.setStartValue(self.pos())
-        pos_anim.setEndValue(end_pos)
-        pos_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        group.addAnimation(pos_anim)
-        
+
         def on_finished():
             self.animation_finished.emit()
             self.hide()
             self.deleteLater()
             if on_complete:
                 on_complete()
-        
-        group.finished.connect(on_finished)
-        self._current_animation = group
-        group.start()
+
+        opacity_anim.finished.connect(on_finished)
+        self._current_animation = opacity_anim
+        opacity_anim.start()
     
     def animate_move_to(self, target_pos: QPoint, duration_ms: int = 300):
         """Animate movement to a new position.

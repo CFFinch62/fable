@@ -94,9 +94,49 @@ class FileBrowser(QWidget):
         self.title_label.setStyleSheet("color: #808080;")
         header_layout.addWidget(self.title_label)
         header_layout.addStretch()
-        
-        # Bookmarks button
+
+        # Navigation buttons
         from PyQt6.QtWidgets import QToolButton
+
+        # Home button - go to user's home directory
+        self.home_btn = QToolButton()
+        self.home_btn.setText("⌂")
+        self.home_btn.setToolTip("Go to Home Directory")
+        self.home_btn.clicked.connect(self._go_home)
+        self.home_btn.setStyleSheet("""
+            QToolButton {
+                background: transparent;
+                color: #808080;
+                border: none;
+                font-size: 14px;
+                padding: 0 4px;
+            }
+            QToolButton:hover {
+                color: #D4D4D4;
+            }
+        """)
+        header_layout.addWidget(self.home_btn)
+
+        # Go Up button - navigate to parent folder
+        self.up_btn = QToolButton()
+        self.up_btn.setText("↑")
+        self.up_btn.setToolTip("Go Up to Parent Folder")
+        self.up_btn.clicked.connect(self._go_up)
+        self.up_btn.setStyleSheet("""
+            QToolButton {
+                background: transparent;
+                color: #808080;
+                border: none;
+                font-size: 14px;
+                padding: 0 4px;
+            }
+            QToolButton:hover {
+                color: #D4D4D4;
+            }
+        """)
+        header_layout.addWidget(self.up_btn)
+
+        # Bookmarks button
         self.bookmarks_btn = QToolButton()
         self.bookmarks_btn.setText("★")
         self.bookmarks_btn.setToolTip("Bookmarks")
@@ -467,3 +507,8 @@ class FileBrowser(QWidget):
         """Navigate to parent folder."""
         if self._root_path and self._root_path.parent != self._root_path:
             self.set_root_path(self._root_path.parent)
+
+    def _go_home(self):
+        """Navigate to user's home directory."""
+        home = Path.home()
+        self.set_root_path(home)

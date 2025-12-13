@@ -50,6 +50,15 @@ Control how fast code executes using the slider at the bottom of the stack panel
 ### 4. The REPL
 The Read-Eval-Print Loop allows you to type Forth commands and execute them immediately. Great for testing small snippets or checking the value of words.
 
+#### **Special REPL Commands**
+These commands are handled by the REPL itself, not the Forth interpreter:
+
+| Command | Description |
+|---------|-------------|
+| `CLS` | Clear the REPL output text (does not affect the stack) |
+
+**Note:** The Forth word `CLEAR` clears the data stack. Use `CLS` to clear the REPL terminal output.
+
 ---
 
 ## Getting Started

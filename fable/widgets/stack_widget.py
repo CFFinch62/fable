@@ -148,19 +148,22 @@ class StackSection(QWidget):
     
     def _remove_item(self, animate: bool = True):
         """Remove top item (pop operation).
-        
+
         Args:
             animate: Whether to animate
         """
         if not self._items:
             return
-        
+
         item = self._items.pop()
-        
+
+        # Always remove from layout immediately so other items reposition
+        self.container_layout.removeWidget(item)
+
         if animate:
+            # Animate fade-out, then delete
             item.animate_pop(self._animation_duration)
         else:
-            self.container_layout.removeWidget(item)
             item.deleteLater()
     
     def clear_all(self, animate: bool = False):
