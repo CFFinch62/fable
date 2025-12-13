@@ -81,7 +81,7 @@ FABLE includes 5 starter libraries with 100+ additional Forth words:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/fable.git
+git clone https://github.com/CFFinch62/fable.git
 cd fable
 
 # Install dependencies
@@ -254,7 +254,7 @@ Contributions are welcome! Here are some ways you can help:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/fable.git
+git clone https://github.com/CFFinch62/fable.git
 cd fable
 
 # Install dependencies
@@ -287,7 +287,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Developer**: Chuck Finch
 - **Organization**: Fragillidae Software
-- **GitHub**: [Your GitHub Profile](https://github.com/yourusername)
+- **GitHub**: [CFFinch62](https://github.com/CFFinch62)
+- **Repository**: [github.com/CFFinch62/fable](https://github.com/CFFinch62/fable)
 
 ---
 
