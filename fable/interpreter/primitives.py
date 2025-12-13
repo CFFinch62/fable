@@ -16,24 +16,27 @@ from .errors import StackUnderflowError, DivisionByZeroError
 
 def register_all(interp: 'ForthInterpreter') -> None:
     """Register all primitive words with the interpreter.
-    
+
     Args:
         interp: The interpreter to register words with
     """
     # Stack manipulation
     _register_stack_words(interp)
-    
+
     # Arithmetic
     _register_arithmetic_words(interp)
-    
+
     # Comparison and logic
     _register_comparison_words(interp)
-    
+
     # Output
     _register_output_words(interp)
-    
+
     # Control flow (compile-time words)
     _register_control_flow_words(interp)
+
+    # File I/O and library management
+    _register_file_words(interp)
 
 
 # =============================================================================
@@ -143,6 +146,25 @@ def _register_stack_words(interp: 'ForthInterpreter') -> None:
         i.require(n + 1, 'PICK')
         i.push(i.peek(n))
     
+    def word_to_r(i: 'ForthInterpreter'):
+        """( n -- ) ( R: -- n ) Move top of data stack to return stack."""
+        i.require(1, '>R')
+        i.return_stack.append(i.pop())
+
+    def word_r_from(i: 'ForthInterpreter'):
+        """( -- n ) ( R: n -- ) Move top of return stack to data stack."""
+        if not i.return_stack:
+            from .errors import StackUnderflowError
+            raise StackUnderflowError('R>', 1, 0, "Return stack is empty")
+        i.push(i.return_stack.pop())
+
+    def word_r_fetch(i: 'ForthInterpreter'):
+        """( -- n ) ( R: n -- n ) Copy top of return stack to data stack."""
+        if not i.return_stack:
+            from .errors import StackUnderflowError
+            raise StackUnderflowError('R@', 1, 0, "Return stack is empty")
+        i.push(i.return_stack[-1])
+
     def word_roll(i: 'ForthInterpreter'):
         """( n -- ) Rotate nth item to top."""
         i.require(1, 'ROLL')
@@ -177,6 +199,9 @@ def _register_stack_words(interp: 'ForthInterpreter') -> None:
         ('PICK', word_pick, '( n -- item )', 'Copy nth item to top'),
         ('ROLL', word_roll, '( n -- )', 'Rotate nth item to top'),
         ('CLEAR', word_clear, '( ... -- )', 'Clear the stack'),
+        ('>R', word_to_r, '( n -- ) ( R: -- n )', 'Move to return stack'),
+        ('R>', word_r_from, '( -- n ) ( R: n -- )', 'Move from return stack'),
+        ('R@', word_r_fetch, '( -- n ) ( R: n -- n )', 'Copy from return stack'),
     ]
     
     for name, code, effect, doc in words:
@@ -394,6 +419,11 @@ def _register_comparison_words(interp: 'ForthInterpreter') -> None:
         """( n -- flag ) Greater than zero."""
         i.require(1, '0>')
         i.push(to_flag(i.pop() > 0))
+
+    def word_0ne(i: 'ForthInterpreter'):
+        """( n -- flag ) Not equal to zero."""
+        i.require(1, '0<>')
+        i.push(to_flag(i.pop() != 0))
     
     def word_and(i: 'ForthInterpreter'):
         """( n1 n2 -- n ) Bitwise AND."""
@@ -460,6 +490,7 @@ def _register_comparison_words(interp: 'ForthInterpreter') -> None:
         ('0=', word_0eq, '( n -- flag )', 'Equal to zero'),
         ('0<', word_0lt, '( n -- flag )', 'Less than zero'),
         ('0>', word_0gt, '( n -- flag )', 'Greater than zero'),
+        ('0<>', word_0ne, '( n -- flag )', 'Not equal to zero'),
         ('AND', word_and, '( n1 n2 -- n )', 'Bitwise AND'),
         ('OR', word_or, '( n1 n2 -- n )', 'Bitwise OR'),
         ('XOR', word_xor, '( n1 n2 -- n )', 'Bitwise XOR'),
@@ -551,7 +582,13 @@ def _register_output_words(interp: 'ForthInterpreter') -> None:
         """( -- ) Show word definition - needs following word."""
         # This is simplified - normally SEE would parse following word
         i.emit_output("Usage: SEE word-name\n")
-    
+
+    def word_s_quote(i: 'ForthInterpreter'):
+        """S" - String literal (lexer handles the actual string)."""
+        # The lexer already pushed the string onto the stack
+        # This word is just a marker for the dictionary
+        pass
+
     # Register all output words
     words = [
         ('.', word_dot, '( n -- )', 'Print and remove top of stack'),
@@ -562,6 +599,7 @@ def _register_output_words(interp: 'ForthInterpreter') -> None:
         ('EMIT', word_emit, '( char -- )', 'Print character'),
         ('TYPE', word_type, '( addr n -- )', 'Print string'),
         ('."', word_dot_quote, '( -- )', 'Print string literal'),
+        ('S"', word_s_quote, '( -- str )', 'String literal'),
         ('WORDS', word_words, '( -- )', 'List all words'),
         ('SEE', word_see, '( -- )', 'Show word definition'),
     ]
@@ -723,6 +761,197 @@ def _register_control_flow_words(interp: 'ForthInterpreter') -> None:
     
     for name, code, effect, doc, immediate in words:
         interp.dictionary.define(DictionaryEntry(
-            name=name, code=code, stack_effect=effect, 
+            name=name, code=code, stack_effect=effect,
             docstring=doc, immediate=immediate
+        ))
+
+
+# =============================================================================
+# File I/O and Library Management Words
+# =============================================================================
+
+def _register_file_words(interp: 'ForthInterpreter') -> None:
+    """Register file I/O and library management words."""
+    from pathlib import Path
+
+    def word_include(i: 'ForthInterpreter'):
+        """INCLUDE - Load and execute a Forth library file.
+
+        Usage: INCLUDE "filename.fth"
+
+        Searches for the file in:
+        1. Current working directory
+        2. ~/.config/fable/libraries/
+        3. <workspace>/libraries/
+        """
+        # This is a special word that needs to parse the next token
+        # We'll handle it during compilation/execution
+        i.require(1, 'INCLUDE')
+        filename = i.pop()
+
+        if not isinstance(filename, str):
+            i.output.emit(f"Error: INCLUDE expects a string filename, got {type(filename).__name__}\n")
+            return
+
+        # Search paths for libraries
+        search_paths = []
+
+        # 1. Current working directory
+        search_paths.append(Path.cwd())
+
+        # 2. User libraries directory
+        user_lib_dir = Path.home() / '.config' / 'fable' / 'libraries'
+        if user_lib_dir.exists():
+            search_paths.append(user_lib_dir)
+
+        # 3. Bundled libraries directory (relative to this file)
+        bundled_lib_dir = Path(__file__).parent.parent.parent / 'libraries'
+        if bundled_lib_dir.exists():
+            search_paths.append(bundled_lib_dir)
+
+        # Try to find the file
+        file_path = None
+        for search_path in search_paths:
+            candidate = search_path / filename
+            if candidate.exists() and candidate.is_file():
+                file_path = candidate
+                break
+
+        if not file_path:
+            i.output.emit(f"Error: Library file '{filename}' not found in search paths:\n")
+            for path in search_paths:
+                i.output.emit(f"  - {path}\n")
+            return
+
+        # Check if already loaded (prevent double-loading)
+        if not hasattr(i, '_loaded_libraries'):
+            i._loaded_libraries = set()
+
+        file_path_str = str(file_path.resolve())
+        if file_path_str in i._loaded_libraries:
+            i.output.emit(f"Library '{filename}' already loaded.\n")
+            return
+
+        # Load and execute the file
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                source = f.read()
+
+            i.output.emit(f"Loading library: {filename}\n")
+            i._loaded_libraries.add(file_path_str)
+
+            # Execute the library code
+            i.evaluate(source)
+
+            i.output.emit(f"Library '{filename}' loaded successfully.\n")
+
+        except Exception as e:
+            i.output.emit(f"Error loading library '{filename}': {e}\n")
+            # Remove from loaded set if it failed
+            i._loaded_libraries.discard(file_path_str)
+
+    def word_save_library(i: 'ForthInterpreter'):
+        """SAVE-LIBRARY - Save user-defined words to a library file.
+
+        Usage: SAVE-LIBRARY "filename.fth"
+
+        Saves all user-defined (non-primitive) words to the specified file
+        in the user libraries directory (~/.config/fable/libraries/).
+        """
+        i.require(1, 'SAVE-LIBRARY')
+        filename = i.pop()
+
+        if not isinstance(filename, str):
+            i.output.emit(f"Error: SAVE-LIBRARY expects a string filename, got {type(filename).__name__}\n")
+            return
+
+        # Ensure .fth extension
+        if not filename.endswith('.fth'):
+            filename += '.fth'
+
+        # User libraries directory
+        user_lib_dir = Path.home() / '.config' / 'fable' / 'libraries'
+        user_lib_dir.mkdir(parents=True, exist_ok=True)
+
+        file_path = user_lib_dir / filename
+
+        # Collect all user-defined (compiled) words
+        user_words = []
+        for word_name in i.dictionary.words():
+            entry = i.dictionary.lookup(word_name)
+            if entry and entry.is_compiled():
+                user_words.append((word_name, entry))
+
+        if not user_words:
+            i.output.emit("No user-defined words to save.\n")
+            return
+
+        # Generate library file content
+        lines = []
+        lines.append(f"\\ Library: {filename}")
+        lines.append(f"\\ Auto-generated by FABLE")
+        lines.append(f"\\ Contains {len(user_words)} word(s)")
+        lines.append("")
+
+        for word_name, entry in user_words:
+            # Decompile the word
+            definition = i.dictionary.see(word_name)
+            if definition:
+                lines.append(definition)
+                lines.append("")
+
+        # Write to file
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(lines))
+
+            i.output.emit(f"Saved {len(user_words)} word(s) to: {file_path}\n")
+
+        except Exception as e:
+            i.output.emit(f"Error saving library: {e}\n")
+
+    def word_loaded_libraries(i: 'ForthInterpreter'):
+        """LOADED-LIBRARIES - List all loaded library files."""
+        if not hasattr(i, '_loaded_libraries') or not i._loaded_libraries:
+            i.output.emit("No libraries loaded.\n")
+            return
+
+        i.output.emit("Loaded libraries:\n")
+        for lib_path in sorted(i._loaded_libraries):
+            i.output.emit(f"  {Path(lib_path).name}\n")
+
+    def word_library_path(i: 'ForthInterpreter'):
+        """LIBRARY-PATH - Show library search paths."""
+        i.output.emit("Library search paths:\n")
+
+        # Current directory
+        i.output.emit(f"  1. {Path.cwd()}\n")
+
+        # User libraries
+        user_lib_dir = Path.home() / '.config' / 'fable' / 'libraries'
+        i.output.emit(f"  2. {user_lib_dir}")
+        if user_lib_dir.exists():
+            i.output.emit(" ✓\n")
+        else:
+            i.output.emit(" (not created yet)\n")
+
+        # Bundled libraries
+        bundled_lib_dir = Path(__file__).parent.parent.parent / 'libraries'
+        i.output.emit(f"  3. {bundled_lib_dir}")
+        if bundled_lib_dir.exists():
+            i.output.emit(" ✓\n")
+        else:
+            i.output.emit(" (not found)\n")
+
+    # Register file I/O words
+    words = [
+        ('INCLUDE', word_include, '( "filename" -- )', 'Load library file'),
+        ('SAVE-LIBRARY', word_save_library, '( "filename" -- )', 'Save user words to library'),
+        ('LOADED-LIBRARIES', word_loaded_libraries, '( -- )', 'List loaded libraries'),
+        ('LIBRARY-PATH', word_library_path, '( -- )', 'Show library search paths'),
+    ]
+
+    for name, code, effect, doc in words:
+        interp.dictionary.define(DictionaryEntry(
+            name=name, code=code, stack_effect=effect, docstring=doc
         ))
