@@ -15,9 +15,14 @@ def main():
     app.setOrganizationName("Fragillidae Software")
     
     # Set application icon
-    icon_path = Path(__file__).parent / "fable" / "resources" / "icons" / "fable_forth_aligned_256x256.png"
+    icon_path = Path(__file__).parent / "fable" / "resources" / "icons" / "fable4-256.png"
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))
+    else:
+        # Fallback to alternative icon if fable4-256.png doesn't exist
+        fallback_path = Path(__file__).parent / "fable" / "resources" / "icons" / "fable_forth_aligned_256x256.png"
+        if fallback_path.exists():
+            app.setWindowIcon(QIcon(str(fallback_path)))
     
     window = MainWindow()
     window.show()
