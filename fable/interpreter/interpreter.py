@@ -56,8 +56,12 @@ class ForthInterpreter(QObject):
         self._current_definition: List = []  # Words being compiled
         self._definition_name: str = ""      # Name of word being defined
         self.delay = 0  # Execution delay in ms
+        self.running = False
         
         # Register primitive words
+        
+        # Register primitive words
+        self._step_event_loop = None
         self._register_primitives()
     
     def _register_primitives(self):
@@ -74,24 +78,34 @@ class ForthInterpreter(QObject):
         Raises:
             ForthError: On any interpreter error
         """
-        tokens = self._lexer.tokenize(source)
-        
-        for token in tokens:
-            if token.type == TokenType.EOF:
-                break
-            
-            if token.type == TokenType.COMMENT:
-                continue  # Skip comments
-            
-            try:
-                self._process_token(token)
-            except ForthError as e:
-                self.error_occurred.emit(str(e))
-                raise
+        try:
+            self.running = True
+            tokens = self._lexer.tokenize(source)
+
+            for token in tokens:
+                if self.execution_mode == "stop":
+                    break
+
+                if token.type == TokenType.EOF:
+                    break
+
+                if token.type == TokenType.COMMENT:
+                    continue  # Skip comments
+
+                try:
+                    self._process_token(token)
+                except ForthError as e:
+                    self.error_occurred.emit(str(e))
+                    raise
+
+                # Wait AFTER processing token (so first step shows result)
+                self._wait_for_step()
+        finally:
+            self.running = False
     
     def _process_token(self, token: Token) -> None:
         """Process a single token.
-        
+
         Args:
             token: The token to process
         """
@@ -99,16 +113,39 @@ class ForthInterpreter(QObject):
             if self.compiling:
                 self._current_definition.append(('LIT', token.value))
             else:
+                # Emit signals for literal push so stack widget animates
+                self.word_starting.emit(str(token.value), '( -- n )')
                 self.push(token.value)
+                self.word_complete.emit(str(token.value), list(self.data_stack))
             return
-        
+
         if token.type == TokenType.STRING:
             if self.compiling:
-                self._current_definition.append(('STR', token.value))
+                # Check if previous item in compiled code is ." word
+                print_string = (len(self._current_definition) > 0 and
+                               self._current_definition[-1] == '."')
+                if print_string:
+                    # Remove the ." word and compile as PRINT operation
+                    self._current_definition.pop()
+                    self._current_definition.append(('PRINT', token.value))
+                else:
+                    # For S" - compile as string literal
+                    self._current_definition.append(('STR', token.value))
             else:
-                self.push(token.value)
+                # Check if previous word was ." (print string)
+                print_string = hasattr(self, '_print_next_string') and self._print_next_string
+                if print_string:
+                    self._print_next_string = False
+                    # Print immediately
+                    self.output.emit(token.value)
+                else:
+                    # Normal string push (for S")
+                    # Emit signals for string push so stack widget animates
+                    self.word_starting.emit(f'"{token.value}"', '( -- str )')
+                    self.push(token.value)
+                    self.word_complete.emit(f'"{token.value}"', list(self.data_stack))
             return
-        
+
         if token.type == TokenType.WORD:
             self._process_word(token.value)
             return
@@ -167,12 +204,6 @@ class ForthInterpreter(QObject):
         # Emit signal after execution
         # Emit signal after execution
         self.word_complete.emit(entry.name, list(self.data_stack))
-        
-        # Handle execution delay
-        if self.delay > 0 and self.execution_mode == "run":
-            loop = QEventLoop()
-            QTimer.singleShot(self.delay, loop.quit)
-            loop.exec()
     
     def set_delay(self, delay_ms: int):
         """Set execution delay in milliseconds."""
@@ -180,10 +211,10 @@ class ForthInterpreter(QObject):
     
     def _execute_compiled(self, code: List) -> None:
         """Execute compiled threaded code with control flow support.
-        
+
         Args:
             code: List of operations to execute
-            
+
         Supports:
             - LIT: Push literal value
             - STR: Push string value
@@ -198,38 +229,60 @@ class ForthInterpreter(QObject):
         """
         ip = 0  # Instruction pointer
         loop_stack = []  # Stack of (limit, index, loop_start_ip)
-        
+
         while ip < len(code):
+            if self.execution_mode == "stop":
+                break
+
             item = code[ip]
             ip += 1
-            
+
+            # Track if this operation should trigger a step pause
+            should_pause = True
+
             if isinstance(item, tuple):
                 op = item[0]
-                
+
                 if op == 'LIT':
+                    # Emit signals for literal push animation
+                    self.word_starting.emit(str(item[1]), '( -- n )')
                     self.push(item[1])
-                    
+                    self.word_complete.emit(str(item[1]), list(self.data_stack))
+
                 elif op == 'STR':
+                    # Emit signals for string push animation
+                    self.word_starting.emit(f'"{item[1]}"', '( -- str )')
                     self.push(item[1])
-                    
+                    self.word_complete.emit(f'"{item[1]}"', list(self.data_stack))
+
+                elif op == 'PRINT':
+                    # Print string (from .")
+                    self.output.emit(item[1])
+
                 elif op == 'BRANCH':
-                    # Unconditional branch
+                    # Unconditional branch - no stack change, no signal needed
                     ip = item[1]
-                    
+                    should_pause = False  # Don't pause on internal branching
+
                 elif op == '0BRANCH':
                     # Branch if top of stack is 0 (false)
                     flag = self.pop()
                     if flag == 0:
                         ip = item[1]
-                        
+                    should_pause = False  # Don't pause on internal branching
+
                 elif op == 'DO':
                     # Start a DO loop: ( limit index -- )
+                    # Emit signal to show DO consuming values and updating return stack
+                    self.word_starting.emit('DO', '( limit index -- )')
                     index = self.pop()
                     limit = self.pop()
                     loop_stack.append((limit, index, ip))
-                    
+                    self.word_complete.emit('DO', list(self.data_stack))
+
                 elif op == 'LOOP':
                     # Increment index and check
+                    should_pause = False  # Internal loop control
                     if loop_stack:
                         limit, index, loop_start = loop_stack[-1]
                         index += 1
@@ -239,10 +292,12 @@ class ForthInterpreter(QObject):
                         else:
                             loop_stack[-1] = (limit, index, loop_start)
                             ip = loop_start
-                            
+
                 elif op == '+LOOP':
                     # Add increment and check
+                    self.word_starting.emit('+LOOP', '( n -- )')
                     n = self.pop()
+                    self.word_complete.emit('+LOOP', list(self.data_stack))
                     if loop_stack:
                         limit, index, loop_start = loop_stack[-1]
                         index += n
@@ -251,26 +306,32 @@ class ForthInterpreter(QObject):
                         else:
                             loop_stack[-1] = (limit, index, loop_start)
                             ip = loop_start
-                            
+
                 elif op == 'UNLOOP':
                     # Discard loop parameters
+                    should_pause = False  # Internal control
                     if loop_stack:
                         loop_stack.pop()
 
                 elif op == 'I':
                     # Push current loop index
                     if loop_stack:
+                        self.word_starting.emit('I', '( -- n )')
                         _, index, _ = loop_stack[-1]
                         self.push(index)
-                        
+                        self.word_complete.emit('I', list(self.data_stack))
+
                 elif op == 'J':
                     # Push outer loop index
                     if len(loop_stack) >= 2:
+                        self.word_starting.emit('J', '( -- n )')
                         _, index, _ = loop_stack[-2]
                         self.push(index)
-                        
+                        self.word_complete.emit('J', list(self.data_stack))
+
                 elif op == 'LEAVE':
                     # Exit current loop
+                    should_pause = False  # Internal control
                     if loop_stack:
                         loop_stack.pop()
                         # Find matching LOOP/+LOOP to skip to
@@ -283,13 +344,17 @@ class ForthInterpreter(QObject):
                                     depth += 1
                                 elif check[0] in ('LOOP', '+LOOP'):
                                     depth -= 1
-                                    
+
             elif isinstance(item, str):
-                # Word call
+                # Word call - _execute_entry already emits signals
                 entry = self.dictionary.lookup(item)
                 if entry:
                     self._execute_entry(entry)
-    
+
+            # Wait AFTER processing operation (so step shows the result)
+            if should_pause:
+                self._wait_for_step()
+
     def _start_definition(self) -> None:
         """Start a new colon definition."""
         self.compiling = True
@@ -411,6 +476,39 @@ class ForthInterpreter(QObject):
         self._current_definition = []
         self._definition_name = ""
         self.state_changed.emit()
+    
+    def step(self):
+        """Execute the next step (resume from pause)."""
+        if self._step_event_loop and self._step_event_loop.isRunning():
+            self._step_event_loop.quit()
+
+    def stop(self):
+        """Stop execution."""
+        self.execution_mode = "stop"  # Flag to stop loops
+        if self._step_event_loop and self._step_event_loop.isRunning():
+            self._step_event_loop.quit()
+        self.reset()
+
+    def _wait_for_step(self):
+        """Handle execution delay or synchronization pause."""
+        if self.execution_mode == "stop":
+            return
+
+        if self.execution_mode == "step":
+            self._step_event_loop = QEventLoop()
+            self._step_event_loop.exec()
+            self._step_event_loop = None
+            
+        elif self.delay > 0 and self.execution_mode == "run":
+            loop = QEventLoop()
+            QTimer.singleShot(self.delay, loop.quit)
+            loop.exec()
+
+    def is_running(self) -> bool:
+        """Check if interpreter is currently executing."""
+        return self.running
+
+    # --- Stack Operations ---
     
     def get_stack_effect(self, word: str) -> Optional[str]:
         """Get the stack effect notation for a word.

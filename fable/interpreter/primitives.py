@@ -560,10 +560,11 @@ def _register_output_words(interp: 'ForthInterpreter') -> None:
     
     def word_dot_quote(i: 'ForthInterpreter'):
         """Print a string literal - handled specially by lexer."""
-        # String is on stack (pushed by lexer)
-        i.require(1, '."')
-        s = i.pop()
-        i.emit_output(str(s))
+        # The lexer creates two tokens: ." and STRING
+        # Set a flag so the next STRING token prints instead of pushing
+        # Only set flag if NOT compiling (during compilation, this is handled differently)
+        if not i.compiling:
+            i._print_next_string = True
     
     def word_words(i: 'ForthInterpreter'):
         """( -- ) List all defined words."""

@@ -6,15 +6,42 @@ The FABLE library system allows you to save and reuse collections of Forth word 
 
 ## Quick Start
 
-### Loading a Library
+### Loading a Library in the REPL
 
-To load a library in the REPL:
+To load a library in the REPL (bottom panel):
 
 ```forth
 S" math-extended.fth" INCLUDE
 ```
 
 This loads the `math-extended.fth` library from one of the library search paths.
+
+### Loading a Library in the Editor
+
+You can also use `INCLUDE` in your Forth source files! Write your code in the editor (center panel) and include libraries at the top:
+
+```forth
+\ my-program.fth
+\ Load libraries we need
+S" math-extended.fth" INCLUDE
+S" strings.fth" INCLUDE
+
+\ Now use words from those libraries
+: GREET
+  ." Hello from FABLE!" CR
+  LINE
+  ." 5 factorial is: " 5 FACTORIAL . CR ;
+
+GREET
+```
+
+Then run your file using:
+- **F5** - Run entire file
+- **F6** - Run selected text
+- **F7** - Run current line
+- **Menu: Run → Run File**
+
+The libraries will be loaded when the file executes!
 
 ### Saving Your Words
 
@@ -100,7 +127,72 @@ ASCII art generation:
 - `CHECKERBOARD` - Draw checkerboard patterns
 - `PROGRESS` - Progress bars
 
-## Example Session
+## Using Libraries in the IDE
+
+### Typical Workflow
+
+1. **Browse examples** - Use the File Browser (left panel) to navigate to the `libraries/` folder
+2. **Open a library** - Double-click any `.fth` file to view it in the editor
+3. **Create your program** - File → New to create a new file
+4. **Include libraries** - Add `S" library-name.fth" INCLUDE` at the top
+5. **Write code** - Use words from the loaded libraries
+6. **Run** - Press F5 to run the entire file, or F6 to run selected code
+7. **Watch the stack** - The Stack Widget (right panel) animates as your code executes!
+
+### Example: Creating a Program with Libraries
+
+Create a new file `my-calculator.fth`:
+
+```forth
+\ Advanced Calculator
+\ Uses math-extended library for additional functions
+
+S" math-extended.fth" INCLUDE
+
+\ Define some helper words
+: SHOW-RESULT ( n -- )
+  ." Result: " . CR ;
+
+\ Test various operations
+." Testing Math Library:" CR
+." " CR
+
+." Absolute value:" CR
+-42 ABS SHOW-RESULT
+
+." Factorial:" CR
+5 FACTORIAL SHOW-RESULT
+
+." GCD of 48 and 18:" CR
+48 18 GCD SHOW-RESULT
+
+." Is 17 prime?" CR
+17 PRIME? IF
+  ." Yes, 17 is prime!" CR
+ELSE
+  ." No, 17 is not prime." CR
+THEN
+```
+
+Save it (Ctrl+S), then press **F5** to run!
+
+### Keyboard Shortcuts for Running Code
+
+- **F5** - Run entire file
+- **F6** - Run selected text (highlight code first)
+- **F7** - Run current line (cursor position)
+- **Ctrl+R** - Reset interpreter (clears all definitions)
+
+### File Browser Integration
+
+The File Browser shows:
+- **examples/** - Sample programs demonstrating Forth features
+- **libraries/** - Bundled library files you can include
+- Your project files
+
+**Tip:** Double-click any `.fth` or `.fs` file to open it in the editor!
+
+## Example REPL Session
 
 ```forth
 \ Load the math library
@@ -146,6 +238,51 @@ To support the bundled libraries, these standard Forth words were also added:
 - `R>` - Move value from return stack
 - `R@` - Copy value from return stack
 - `0<>` - Test if not equal to zero
+
+## Tips and Tricks
+
+### Control Flow Only Works in Compiled Words
+
+Control flow words like `IF/THEN/ELSE`, `BEGIN/UNTIL`, and `DO/LOOP` only work inside word definitions (`: WORD ... ;`), not directly in the REPL.
+
+**This won't work in the REPL:**
+```forth
+10 EVEN? IF ." Yes" ELSE ." No" THEN  \ Error!
+```
+
+**Instead, define a word:**
+```forth
+: CHECK-EVEN ( n -- )
+  EVEN? IF ." Yes" ELSE ." No" THEN ;
+
+10 CHECK-EVEN  \ Works!
+```
+
+### String Literals
+
+- Use `S"` to push a string onto the stack (for INCLUDE, SAVE-LIBRARY, etc.)
+- Use `."` to print a string immediately
+
+```forth
+S" math-extended.fth" INCLUDE  \ S" pushes string for INCLUDE
+." Hello World!" CR             \ ." prints immediately
+```
+
+### Libraries Are Loaded Once
+
+FABLE tracks which libraries have been loaded and ignores subsequent INCLUDE calls for the same library. This prevents redefinition errors when multiple files include the same library.
+
+### Experimenting in the Editor
+
+The editor's keyboard shortcuts make it easy to experiment:
+
+- **F5** - Run entire file (great for testing complete programs)
+- **F6** - Run selected text (perfect for testing specific sections)
+- **F7** - Run current line (ideal for step-by-step execution)
+
+Try opening `examples/using-libraries.fth` and experimenting with these shortcuts!
+
+---
 
 Enjoy building your Forth vocabulary!
 
