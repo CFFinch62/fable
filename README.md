@@ -286,7 +286,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📬 Contact
 
 - **Developer**: Chuck Finch
-- **Organization**: Fragillidae Software
+- **Organization**: Fragillidae Software (www.fragullidaesoftware.com)
 - **GitHub**: [CFFinch62](https://github.com/CFFinch62)
 - **Repository**: [github.com/CFFinch62/fable](https://github.com/CFFinch62/fable)
 

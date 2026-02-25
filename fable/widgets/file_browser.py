@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QLineEdit
 )
 from PyQt6.QtGui import QFont, QFileSystemModel, QAction, QIcon
+from fable.utils.settings import Settings
 
 
 class ForthFileSystemModel(QFileSystemModel):
@@ -64,10 +65,12 @@ class FileBrowser(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.settings = Settings()
         self._root_path: Path | None = None
         self._bookmarks: list[Path] = []
         self._setup_ui()
         self._setup_context_menu()
+        self._load_settings()
     
     def _setup_ui(self):
         """Initialize the user interface."""
@@ -423,19 +426,26 @@ class FileBrowser(QWidget):
         index = self.model.setRootPath(str(self._root_path))
         self.tree.setRootIndex(index)
         self.title_label.setText(self._root_path.name.upper())
+        self.settings.set("browser", "last_directory", str(self._root_path))
+        self.settings.save()
         self.root_path_changed.emit(str(self._root_path))
 
     def get_root_path(self) -> str | None:
         """Get the current root path."""
         return str(self._root_path) if self._root_path else None
         
-    def set_bookmarks(self, paths: list[str]):
-        """Set list of bookmarked paths."""
-        self._bookmarks = [Path(p) for p in paths if p]
-        
     def get_bookmarks(self) -> list[str]:
         """Get list of bookmarked paths."""
         return [str(p) for p in self._bookmarks]
+
+    def set_bookmarks(self, paths: list[str]):
+        """Set list of bookmarked paths."""
+        self._bookmarks = [Path(p) for p in paths if p]
+        self._save_bookmarks_to_settings()
+
+    def _save_bookmarks_to_settings(self):
+        self.settings.set("browser", "bookmarks", self.get_bookmarks())
+        self.settings.save()
         
     def _update_bookmarks_menu(self):
         """Rebuild the bookmarks menu."""
@@ -465,11 +475,13 @@ class FileBrowser(QWidget):
         """Add a path to bookmarks."""
         if path not in self._bookmarks:
             self._bookmarks.append(path)
+            self._save_bookmarks_to_settings()
             self.bookmarks_changed.emit([str(p) for p in self._bookmarks])
             
     def _clear_bookmarks(self):
         """Clear all bookmarks."""
         self._bookmarks.clear()
+        self._save_bookmarks_to_settings()
         self.bookmarks_changed.emit([])
     
     def get_selected_path(self) -> str | None:
@@ -512,3 +524,14 @@ class FileBrowser(QWidget):
         """Navigate to user's home directory."""
         home = Path.home()
         self.set_root_path(home)
+
+    def _load_settings(self):
+        last_dir = self.settings.get("browser", "last_directory")
+        if last_dir and os.path.isdir(last_dir):
+            self.set_root_path(last_dir)
+        else:
+            self.set_root_path(str(Path.home()))
+            
+        saved_bookmarks = self.settings.get("browser", "bookmarks")
+        if saved_bookmarks and isinstance(saved_bookmarks, list):
+            self.set_bookmarks(saved_bookmarks)
